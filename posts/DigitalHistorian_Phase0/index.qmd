@@ -3,10 +3,10 @@ title: "Part 1: Why vanilla RAG isn't enough for historical research"
 author: "Kanav Sharma"
 date: "2026-10-11"
 categories: [RAG, LLM, Indian History]
-image: "image.png"
+image: "Phase0_Image.jpg"
 description: "Phase 0 of The Digital Historian. A hybrid RAG baseline for Indian history, and the questions it is not allowed to pretend it can answer."
 toc: true
-title-block-banner: true # "title_image.png"
+title-block-banner: true  
 ---
 
 I have spent my career building models on numbers: tabular data, time series, forecasting. Over the last couple of years my work moved to LLMs, RAG and agents. At work I could use RAG on business data. But I wanted to understand it properly, end to end, on a problem where I could *feel* when the answer was wrong.
