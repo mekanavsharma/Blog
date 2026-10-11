@@ -2,14 +2,14 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/DigitalHistorian_Phase0/index.html",
       "/posts/FastAI_Course_Lect6_Part4/index.html",
       "/posts/FastAI_Course_Lect6_Part3/index.html",
       "/posts/FastAI_Course_Lect6_Part2/index.html",
       "/posts/FastAI_Course_Lect6_Part1/index.html",
       "/posts/FastAI_Course_Lect5/index.html",
       "/posts/FastAI_Course_Lect3/index.html",
-      "/posts/FastAI_Course_Lect2/index.html",
-      "/posts/Job-Search/index.html"
+      "/posts/FastAI_Course_Lect2/index.html"
     ]
   }
 ]

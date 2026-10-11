@@ -14,11 +14,12 @@ about:
     - icon: github
       text: Github
       href: https://github.com/mekanavsharma
-    #- icon: file-text
-    #  text: Resume
-    #  href: Resume_Kanav.pdf
+    - icon: file-text
+      text: Resume
+      href: Resume_Kanav.pdf
 ---
-Welcome to my digital space! I'm a data scientist in FinTech venturing into the exciting world of Deep Learning. Over the coming months, I'll share my data science projects and learnings here as I delve deeper into AI and its boundless potential.
+
+Data Scientist with more than 7 years of experience developing machine learning, deep learning, forecasting, NLP, and Generative AI solutions across FMCG, banking, credit analytics, and power sectors. Built production-grade Agentic AI, Agentic RAG, GraphRAG, and multi-agent systems on Databricks, fine-tuned LLMs using LoRA, QLoRA, PEFT, RAFT, and DPO, and evaluated model quality using RAGAS and LLM Eval frameworks. Partnered closely with cross-functional stakeholders throughout delivery, translating technical work into measurable business impact through AI-driven automation and predictive analytics.
 
 Whether you're a fellow data enthusiast, an AI aficionado, or simply curious, join me on this captivating journey. Get ready to explore the magic of data, algorithms, and the frontier of Deep Learning. Let's unravel mysteries and unlock new frontiers together! I'm always eager to learn, so if you'd like to provide feedback, guidance, or engage in discussion on any topic or project, feel free to reach out to me at `kanav608@gmail.com`.
 
@@ -30,7 +31,9 @@ Btech - CSE \| 7.96 CGPA
 
 ## Experience
 
-**Transunion** \| Senior Analyst \| March 2023 - Present
+**Tiger Analytics** \| Data Scientist \| August 2024 - Present
+
+**Transunion** \| Senior Analyst \| March 2023 - Aug 2024
 
 **Kreate Energy Pvt Ltd** \| Junior Associate \| Feb 2020 - March 2023
 

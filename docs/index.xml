@@ -10,7 +10,211 @@
 <atom:link href="https://mekanavsharma.github.io/Blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Collection of my Projects and Ideas</description>
 <generator>quarto-1.4.554</generator>
-<lastBuildDate>Fri, 10 May 2024 18:30:00 GMT</lastBuildDate>
+<lastBuildDate>Fri, 09 Oct 2026 18:30:00 GMT</lastBuildDate>
+<item>
+  <title>Part 1: Why vanilla RAG isn’t enough for historical research</title>
+  <dc:creator>Kanav Sharma</dc:creator>
+  <link>https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase0/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>Ask a normal RAG demo when Ashoka became a Buddhist, before or after Kalinga, and why. It will answer. That is the problem.</p>
+<p>The textbook version is one sentence. The books are not. On my shelf, R.C. Majumdar, R.K. Mukherjee, Romila Thapar, A.L. Basham, André Wink and Abraham Eraly do not share a paragraph, and they do not always tell the same story. A pipeline that pulls back a handful of chunks and writes one confident answer has already decided, quietly, that history has a single voice.</p>
+<p>I have been building <a href="https://github.com/mekanavsharma/the-digital-historian">The Digital Historian</a> to do a narrower thing. Answer questions about Indian history from OCR’d books, and show the page. This post is Phase 0. It is the baseline I wanted in place before I was willing to call anything else an improvement.</p>
+<p>It is already more than vanilla RAG. It is still not enough. The rest of this series is the list of ways it fails.</p>
+<section id="what-i-mean-by-vanilla-rag" class="level2">
+<h2 class="anchored" data-anchor-id="what-i-mean-by-vanilla-rag">What I mean by vanilla RAG</h2>
+<p>Chunk the corpus. Embed the chunks. Embed the question. Take the nearest neighbours. Paste them under the question. Ask a language model to answer.</p>
+<p>That is a good default for a company handbook. A handbook has one author, one vocabulary, and a question that usually lives inside one section. The corpus I actually have on disk has none of those properties.</p>
+<p><strong>The text is OCR, not prose.</strong> One volume of <em>The History and Culture of the Indian People</em> took about 22 minutes to extract. Scans are not consistent. André Wink’s <em>Al-Hind</em>, Volume 2, is two book pages on one image. Chapter titles and stray page numbers leak into the body. A hyphen at the end of a line becomes a word the embedder has never seen. If you embed that as if it were a clean Wikipedia paragraph, you are embedding the scanner.</p>
+<p><strong>Names do not sit still.</strong> The same king shows up as Ashoka, Asoka, and the Mauryan emperor who issued the Kalinga edicts. A dense embedding often places those near each other. It does not have to. BM25 will not miss the spelling that is actually on the page. Dense search will not miss the description when the name is missing. Use only one of them and you will systematically drop one kind of evidence.</p>
+<p><strong>The question is often a constraint, not a topic.</strong> “Before or after Kalinga” is a relation in time. Cosine similarity retrieves passages about Ashoka and passages about Kalinga. It does not retrieve the relation. The model then fills the relation in from pretraining, which is the textbook story I was trying not to trust.</p>
+<p><strong>The sources disagree on purpose.</strong> While I was cleaning the data I labelled every chunk with a period (Ancient, Medieval, Modern) and a perspective (Nationalist, Marxist, Neutral). Phase 0 stores those labels. At query time it ignores them. The nearest chunk wins, the model blends, and a disagreement becomes a smooth paragraph. An average of historians is not a citation.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  Q["A history question"] --&gt; V["Vanilla RAG&lt;br/&gt;embed, top-k, generate"]
+  V --&gt; A["One fluent paragraph"]
+  A --&gt; B["Looks answered"]
+  B --&gt; C["No page, no author,&lt;br/&gt;no disagreement"]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="what-phase-0-actually-does" class="level2">
+<h2 class="anchored" data-anchor-id="what-phase-0-actually-does">What Phase 0 actually does</h2>
+<p>I did not ship that pipeline. I shipped the smallest system I was willing to measure. Fully local. No external API.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  Q["User question"] --&gt; BM["BM25 · top 50"]
+  Q --&gt; FV["FAISS · nomic-embed-text-v1.5 · top 60"]
+  BM --&gt; RRF["Weighted reciprocal rank&lt;br/&gt;BM25 0.4 · FAISS 0.6&lt;br/&gt;dedupe on chunk_id"]
+  FV --&gt; RRF
+  RRF --&gt; H["Top 30"]
+  H --&gt; CE["Cross-encoder rerank&lt;br/&gt;ms-marco-MiniLM-L-6-v2"]
+  CE --&gt; T["Top 10 chunks"]
+  T --&gt; P["Strict prompt&lt;br/&gt;context only, or say you don't know"]
+  P --&gt; LLM["Local Qwen instruct model&lt;br/&gt;4-bit NF4"]
+  LLM --&gt; OUT["Answer&lt;br/&gt;then every chunk id that entered the prompt"]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>A chunk at rank <code>r</code> scores <code>weight / (r + k)</code>. If BM25 and FAISS both return the same <code>chunk_id</code>, I keep the document once and add the scores. The cross-encoder then reads the question next to the passage and reorders that list. Only ten chunks are allowed into the prompt, and the prompt is capped at about 10,000 characters.</p>
+<p>The instruction to the model is not polite. Use only the context. Do not bring in outside knowledge. If the context has nothing, say you don’t know. Write a paragraph. Do not invent <code>chunk_id</code> tokens. I append those myself, after generation, from the chunks that were actually in the prompt. I do not trust the model to cite.</p>
+<p>Length is a parameter, not a vibe: <code>short</code>, <code>concise</code>, or <code>detailed</code>, with an optional word cap.</p>
+<p>The part that took the time was not the retriever. It was the pages.</p>
+<p>After OCR I strip chapter headers, standalone page numbers, and hyphenation across line breaks. I do not cut a page in isolation. A slice of the previous page and the next page is carried onto the current page, so a claim that crosses a page break still exists, and the page number stays attached. A recursive splitter then cuts that into chunks of about 1,600 characters with 200 characters of overlap. Every chunk gets an id that I can read without opening the file:</p>
+<p><code>HCIP_RCM_V2_C5_P143_1</code></p>
+<p>series, volume, chapter, page, piece. Building the FAISS index over the full corpus took about 35 minutes on a Kaggle P100. After that the index is just read. The processed corpus is 167 MB of JSONL, on <a href="https://www.kaggle.com/datasets/kanav608/input-data">Kaggle</a>, because it does not belong in git.</p>
+</section>
+<section id="one-answer-seven-chunk-ids" class="level2">
+<h2 class="anchored" data-anchor-id="one-answer-seven-chunk-ids">One answer, seven chunk ids</h2>
+<p>This is a real run, concise style, from the Phase 0 README.</p>
+<pre class="text"><code>Query: Can you check and tell when did Ashoka or Asoka became Buddhist
+before or after Kalinga, why did he became?
+
+Ashoka became Buddhist before the Kalinga war. According to the context, he became a Buddhist before the Kalinga war, around 265 BCE, as an upasaka. The remorse he felt after the Kalinga war deepened his belief in Buddhism, leading him to adopt it as a central pursuit. This conversion was not immediate but developed gradually over time, culminating in a strong commitment to Buddhist principles and practices. The Kalinga war served as a catalyst for his spiritual transformation, prompting him to seek solace and guidance in Buddhism.
+
+[chunk_id=HCIP_RCM_V2_C5_P143_1]
+[chunk_id=ASOKA_RKM_C2_P43_1]
+[chunk_id=EARLY_INDIA_RTH_C6_P288_0]
+[chunk_id=GEM_LOTUS_AE_C6_P486_1]
+[chunk_id=AL_HIND_AW_V2_C10_P176_2]
+[chunk_id=EARLY_INDIA_RTH_C6_P262_1]
+[chunk_id=WTWI_ALB_C3_P112_1]</code></pre>
+<p>The content is more careful than the textbook line. It says he was an upasaka before the war, around 265 BCE, and that Kalinga deepened a belief that was already there. I am not asking you to treat that as settled. I am asking you to look at how it is written.</p>
+<p>“According to the context” is not a historian’s phrase. It is the prompt leaking into the answer. And then the last line:</p>
+<table class="table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Prefix</th>
+<th>Where it came from</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>HCIP_RCM</code></td>
+<td><em>The History and Culture of the Indian People</em>, R.C. Majumdar</td>
+</tr>
+<tr class="even">
+<td><code>ASOKA_RKM</code></td>
+<td><em>Asoka</em>, R.K. Mukherjee</td>
+</tr>
+<tr class="odd">
+<td><code>EARLY_INDIA_RTH</code></td>
+<td><em>Early India</em>, Romila Thapar</td>
+</tr>
+<tr class="even">
+<td><code>GEM_LOTUS_AE</code></td>
+<td><em>Gem in the Lotus</em>, Abraham Eraly</td>
+</tr>
+<tr class="odd">
+<td><code>AL_HIND_AW</code></td>
+<td><em>Al-Hind</em>, André Wink</td>
+</tr>
+<tr class="even">
+<td><code>WTWI_ALB</code></td>
+<td><em>The Wonder That Was India</em>, A.L. Basham</td>
+</tr>
+</tbody>
+</table>
+<p>Seven ids. Six books. One paragraph. No sentence is tied to a book. If Thapar and Majumdar diverge inside those pages, this format cannot say so. It can only look sure.</p>
+<p>That is the hole. Hybrid search got me into the right neighbourhood. It did not give me a historian.</p>
+</section>
+<section id="the-number-i-do-not-want-quoted-back-at-me" class="level2">
+<h2 class="anchored" data-anchor-id="the-number-i-do-not-want-quoted-back-at-me">The number I do not want quoted back at me</h2>
+<p>On the evaluation set I had for this config, hybrid retrieval plus the reranker scored about <strong>ROUGE-1 0.44</strong> and <strong>ROUGE-L 0.29</strong> against the reference answers.</p>
+<p>I am publishing it because a baseline without a number is a demo. I am also telling you not to be impressed.</p>
+<p>ROUGE counts overlapping words. A fluent paragraph that picks the wrong side of a debate can beat a short, correct, cited one. It cannot see the failure I actually care about, which is attribution. It cannot tell “the context supports this” from “the model remembered this from pretraining and the context happened to rhyme.” Later in the series the measurement moves to faithfulness, context precision, and whether a citation points at the sentence that was used. ROUGE can stay as a sanity check. It is not the verdict.</p>
+<p>There is a second honesty problem in the harness. It reports the hybrid system. It does not yet report BM25 alone, FAISS alone, and hybrid side by side. So I will not claim, in this post, that I have measured the gap. The argument above is about what a single ranked list cannot represent. The ablation is still owed.</p>
+</section>
+<section id="five-breaks-that-a-better-top-k-will-not-fix" class="level2">
+<h2 class="anchored" data-anchor-id="five-breaks-that-a-better-top-k-will-not-fix">Five breaks that a better top-k will not fix</h2>
+<p>These are from questions I actually run.</p>
+<p><strong>1. One voice.</strong> “How did Ashoka rule his subjects?” is not the same question in Thapar and in Mukherjee. Phase 0 retrieves both if they sit near the query, then writes a single answer. Comparison is a different task. It needs a lane per historian, and a step that refuses to merge them until someone asks for the comparison. That is Part 2.</p>
+<p><strong>2. The follow-up.</strong> “Why did he?” is not a retrieval query. Phase 0 has no memory. The pronoun goes into BM25 as the word “he”. The question has to be rewritten into “Why did Ashoka become a Buddhist?” before anything is searched. That is also Part 2.</p>
+<p><strong>3. A relation that no single chunk holds.</strong> “Did Savarkar’s writing reach Bhagat Singh?” is two people and an edge. Top-k returns essays about each of them. It returns the edge only when some 1,600-character window happens to contain both names. Part 3 puts people, organisations and a timeline in a graph, and checks that against the vector hits instead of hoping the chunk boundary was kind.</p>
+<p><strong>4. The right shelf, not the nearest chunk.</strong> A question about the drain of wealth, and a question about the same years written as a nationalist narrative, should not be answered from the same pile. The labels are already on the chunks. Phase 0 does not filter on them. Part 4 routes the question to a period and a perspective, keeps only those chunks, and fine-tunes the generator so it answers from the retrieved pages and ignores the distractors that retrieval always lets through.</p>
+<p><strong>5. A citation you can check.</strong> Appending every chunk id that entered the prompt is an honest description of what the model was shown. It is not a citation. A citation is: this sentence, that page. Part 5 trains that behaviour, then runs a generate, critique, refine loop that is allowed to rewrite only when a faithfulness score fails. The model’s own confidence is not the score.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  P0["Part 1 · Phase 0&lt;br/&gt;hybrid retrieve, one answer"] --&gt; P1["Part 2 · Phase 1&lt;br/&gt;rewrite, memory,&lt;br/&gt;one lane per historian"]
+  P1 --&gt; P2["Part 3 · Phase 2&lt;br/&gt;graph, timeline,&lt;br/&gt;multi-hop"]
+  P2 --&gt; P3["Part 4 · Phase 3&lt;br/&gt;route by period and school,&lt;br/&gt;RAFT"]
+  P3 --&gt; P4["Part 5 · Phase 4&lt;br/&gt;inline citations,&lt;br/&gt;DPO, self-check"]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>Two smaller choices I am not promoting into their own phase. The reranker only sees the first 1,024 characters of a chunk. Generation samples at temperature 0.3. For a system whose job is to stay on the page, sampling is a luxury. I would rather be repetitive than inventive. I have not turned it off. I am writing it down so the knob stays a decision and not a default I forgot about.</p>
+</section>
+<section id="what-i-am-not-claiming" class="level2">
+<h2 class="anchored" data-anchor-id="what-i-am-not-claiming">What I am not claiming</h2>
+<p>Phase 0 is a control. It is local, it cites the chunks it saw, and it will say it doesn’t know when the prompt is doing its job. It is not a research assistant.</p>
+<p>It will not tell you when two books conflict. It will not hold the thread of a conversation. It will not refuse a nearest-neighbour answer that came from the wrong school of history. A small model still walks past a strict prompt in boring ways, and ROUGE will clap for it.</p>
+<p>If you want to run the control yourself:</p>
+<div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> phase_0_rag_baseline.run_query <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--query</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"When did Ashoka become a Buddhist, before or after Kalinga, and why?"</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--answer_style</span> concise</span></code></pre></div>
+<p>Code: <a href="https://github.com/mekanavsharma/the-digital-historian">github.com/mekanavsharma/the-digital-historian</a></p>
+<p>Corpus: <a href="https://www.kaggle.com/datasets/kanav608/input-data">Indian History JSONL on Kaggle</a></p>
+</section>
+<section id="next-saturday" class="level2">
+<h2 class="anchored" data-anchor-id="next-saturday">Next Saturday</h2>
+<p>Part 2 is the same corpus and the same hybrid retriever. The difference is the thing I actually want to show. Not the framework. A follow-up, “how did he rule?”, rewritten to Ashoka before search runs, and two historians held in separate lanes so they cannot be averaged into a paragraph that neither of them wrote.</p>
+<p>If you have broken a RAG system on sources that disagree, I want the failure more than the architecture diagram. The repo is the long version of this post.</p>
+
+
+</section>
+
+ ]]></description>
+  <category>RAG</category>
+  <category>LLM</category>
+  <category>Indian History</category>
+  <guid>https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase0/</guid>
+  <pubDate>Fri, 09 Oct 2026 18:30:00 GMT</pubDate>
+  <media:content url="https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase0/image.png" medium="image" type="image/png"/>
+</item>
 <item>
   <title>FastAI Course Lecture 6 Part 4 Notes</title>
   <dc:creator>Kanav Sharma</dc:creator>
@@ -21,11 +225,11 @@
 
 
 
-<section id="aim-in-this-we-want-to-create-a-multi-target-model-i.e-to-predict-calorie-count-food-type." class="level4">
-<h4 class="anchored" data-anchor-id="aim-in-this-we-want-to-create-a-multi-target-model-i.e-to-predict-calorie-count-food-type.">AIM : In this we want to create a multi-target model i.e to predict calorie count &amp; food type.</h4>
+<section id="aim-in-this-we-want-to-create-a-multi-target-model-i.e.-to-predict-calorie-count-food-type." class="level4">
+<h4 class="anchored" data-anchor-id="aim-in-this-we-want-to-create-a-multi-target-model-i.e.-to-predict-calorie-count-food-type.">AIM : In this we want to create a multi-target model i.e.&nbsp;to predict calorie count &amp; food type.</h4>
 </section>
-<section id="call-library-download-data-create-folder-blah-blah.." class="level2">
-<h2 class="anchored" data-anchor-id="call-library-download-data-create-folder-blah-blah..">Call library, download data, create folder blah blah..</h2>
+<section id="call-the-library-download-data-create-folder-blah-blah.." class="level2">
+<h2 class="anchored" data-anchor-id="call-the-library-download-data-create-folder-blah-blah..">Call the library, download data, create folder blah blah..</h2>
 <div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">#hide</span></span>
@@ -253,8 +457,8 @@ Requirement already satisfied: mpmath&gt;=0.19 in /opt/conda/lib/python3.10/site
 </progress>
 <p>100.00% [5686607872/5686607260 02:26&lt;00:00]</p>
 </div>
-<section id="name-of-all-subfolders" class="level4">
-<h4 class="anchored" data-anchor-id="name-of-all-subfolders">Name of all subfolders</h4>
+<section id="size-of-all-subfolders" class="level4">
+<h4 class="anchored" data-anchor-id="size-of-all-subfolders">Size of all subfolders</h4>
 <div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1">subfolders <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> [f.name <span class="cf" style="color: #003B4F;
@@ -272,7 +476,7 @@ font-style: inherit;">len</span>(subfolders)</span></code></pre></div>
 </section>
 <section id="calorie-and-food-name-folder" class="level2">
 <h2 class="anchored" data-anchor-id="calorie-and-food-name-folder">Calorie and Food Name Folder</h2>
-<p>Create a dataframe which will have all Images from training folder as Index and have sub folder and calorie count(which is random).</p>
+<p>Create a dataframe which will have all Images from training folder as Index and have a sub folder and calorie count(which is random).</p>
 <div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># Initialize empty lists to store subfolder names and file names</span></span>
@@ -514,13 +718,13 @@ font-style: inherit;">0.75</span>)</span>
 <div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">blocks<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>(ImageBlock,CategoryBlock,CategoryBlock)</span></code></pre></div>
-<p>it will generate three outputs: an image (which we want to use for training), a categorical variable representing the calorie content, and another categorical variable representing the food type. We can add as many additional features as needed.</p>
+<p>It will generate three outputs: an image (which we want to use for training), a categorical variable representing the calorie content, and another categorical variable representing the food type. We can add as many additional features as needed.</p>
 <div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1">n_inp<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1</span></span></code></pre></div>
-<p>This line will tell to our dataloader that only 1 of them(1st block i.e ImageBlock) is Independent variable &amp; other two are target variable.</p>
+<p>This line will tell our dataloader that only 1 of them(1st block i.e ImageBlock) is Independent variable &amp; other two are target variable.</p>
 <div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1">get_items<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>get_image_files</span></code></pre></div>
@@ -529,7 +733,7 @@ font-style: inherit;">=</span>get_image_files</span></code></pre></div>
 background-color: null;
 font-style: inherit;">=</span> [parent_label,get_calorie]</span></code></pre></div>
 <p>To create the two outputs for each file, call two functions: parent_label (from fastai) and get_calorie (defined above).</p>
-<p>Rest of the lines are already explained in 1st lecture</p>
+<p>Rest of the lines are already explained in <a href="https://mekanavsharma.github.io/Blog/posts/FastAI_Course_Lect6_Part1/">1st lecture</a>.</p>
 <section id="batch" class="level3">
 <h3 class="anchored" data-anchor-id="batch">Batch</h3>
 <div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1">dls.show_batch(max_n<span class="op" style="color: #5E5E5E;
@@ -539,9 +743,9 @@ background-color: null;
 font-style: inherit;">6</span>)</span></code></pre></div>
 <p><img src="https://mekanavsharma.github.io/Blog/posts/FastAI_Course_Lect6_Part4/lecture-6-road-to-the-top-part-4-self_files/lecture-6-road-to-the-top-part-4-self_23_0.png" class="img-fluid"></p>
 </section>
-<section id="replicating-the-disease-model" class="level3">
-<h3 class="anchored" data-anchor-id="replicating-the-disease-model">Replicating the disease model</h3>
-<p>Now we’ll replicate the same disease model we’ve made before, but have it work with this new data.</p>
+<section id="replicating-the-food-model" class="level3">
+<h3 class="anchored" data-anchor-id="replicating-the-food-model">Replicating the Food model</h3>
+<p>Now we’ll replicate the same food model we’ve made before, but have it work with this new data.</p>
 <p>The key difference is that our metrics and loss will now receive three things instead of two: the model outputs (i.e.&nbsp;the metric and loss function inputs), and the two targets (food_type and calorie). Therefore, we need to define slight variations of our metric (error_rate) and loss function (cross_entropy) to pass on just the <code>food_type</code> target:</p>
 <div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><span class="kw" style="color: #003B4F;
 background-color: null;
@@ -688,8 +892,8 @@ font-style: inherit;">5</span>, lr)</span></code></pre></div>
 </section>
 <section id="multi-target-model" class="level2">
 <h2 class="anchored" data-anchor-id="multi-target-model">Multi-Target Model</h2>
-<p>We had a model that predicted 100 things(no of food types) and among these whomsoever have the highest probability(food type) will assign to that image. So, now I want to have a model that can predict 202 things(101 food type + 101 calorie count).</p>
-<p>We can define <code>disease_loss</code> just like we did previously, but with one important change: the input tensor is now length 202, not 101, so it doesn’t match the number of possible food type. We can pick whatever part of the input we want to be used to predict food type. Let’s use the first 101 values:</p>
+<p>We had a model that predicted 101 things(no of food types) and among these, whichever has the highest probability(food type) will assign ed to that image. Now, I want to have a model that can predict 202 things(101 food type + 101 calorie count).</p>
+<p>We can define <code>disease_loss</code> just like we did earlier, but with one important change: the input tensor is now of length 202, not 101, so it doesn’t match the number of possible food type. We can pick whatever part of the input we want to be used to predict food type. Let’s use the first 101 values:</p>
 <div class="sourceCode" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> food_loss(inp,food,calorie): <span class="cf" style="color: #003B4F;
@@ -697,7 +901,7 @@ background-color: null;
 font-style: inherit;">return</span> F.cross_entropy(inp[:,:<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">101</span>],food)</span></code></pre></div>
-<p>That means we can do the same thing for predicting variety, but use the last 10 values of the input, and set the target to variety instead of disease:</p>
+<p>That means we can do the same thing for predicting calorie, but use the last 101 values of the input, and set the target to calorie instead of food:</p>
 <div class="sourceCode" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">def</span> calorie_loss(inp,food,calorie): <span class="cf" style="color: #003B4F;
@@ -907,9 +1111,7 @@ font-style: inherit;">'/kaggle/working/Lecture6_Part4_multi_model.pkl'</span>, l
 <section id="conclusion" class="level2">
 <h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
 <p>So, is this useful?</p>
-<p>Well… if you actually want a model that predicts multiple things, then yes, definitely! But as to whether it’s going to help us better predict rice disease, I honestly don’t know. I haven’t come across any research that tackles this important question: when can a multi-target model improve the accuracy of the individual targets compared to a single target model? (That doesn’t mean it doesn’t exist of course – perhaps it does and I haven’t found it yet…)</p>
-<p>I’ve certainly found in previous projects that there are cases where improvements to single targets can be made by using a multi-target model. I’d guess that it’ll be most useful when you’re having problems with overfitting. So try doing this with more epochs, and let me know how you go!</p>
-<p>If you found this notebook useful, please remember to click the little up-arrow at the top to upvote it, since I like to know when people have found my work useful, and it helps others find it too. And if you have any questions or comments, please pop them below – I read every comment I receive.</p>
+<p>Well… if you’re truly seeking a model capable of predicting multiple outcomes, then absolutely! However, whether this approach will enhance our ability to predict rice disease is uncertain</p>
 
 
 </section>
@@ -10333,86 +10535,6 @@ font-style: inherit;">'Lecture2_Big_Cat_Model.pkl'</span>)</span></code></pre></
   <category>FastAI</category>
   <guid>https://mekanavsharma.github.io/Blog/posts/FastAI_Course_Lect2/</guid>
   <pubDate>Mon, 08 Apr 2024 18:30:00 GMT</pubDate>
-</item>
-<item>
-  <title>How I got multiple offers and Landed My Dream Job in Fintech</title>
-  <dc:creator>Kanav Sharma</dc:creator>
-  <link>https://mekanavsharma.github.io/Blog/posts/Job-Search/</link>
-  <description><![CDATA[ 
-
-
-
-
-<p>Are you tired of feeling stuck in your career? Do you dream of making a significant change but don’t know where to start? As a data scientist specializing in time series modeling and regression-based models using R, I felt exactly the same way. But I’m here to tell you that with the right mindset and a little bit of hard work, anything is possible.</p>
-<section id="introduction-my-career-shift-story-and-how-you-can-do-it-too" class="level2">
-<h2 class="anchored" data-anchor-id="introduction-my-career-shift-story-and-how-you-can-do-it-too">Introduction: My career shift story and how you can do it too</h2>
-<p>I made the decision to shift my career from the energy sector to either health or finance industries, with a goal of securing a job that would offer at least a 120% salary increase from my current position, ideally in the FinTech space. And guess what? I not only achieved that goal but also landed my dream job!</p>
-<p>Don’t settle for a career that doesn’t excite you. Take charge of your future and make the change you’ve been dreaming of. Join me on this journey, and let’s make 2023 the year of success and fulfillment!</p>
-<p>In this blog post, I’ll share my journey with you and provide valuable insights and tips for how you too can make a career shift and achieve your dream job. From studying Python and machine learning basics to creating resumes and profiles on job portals, I’ll guide you through the entire process. I’ll also share my experience with the roller-coaster of interviews and how I overcame my lack of knowledge in machine learning algorithms.</p>
-</section>
-<section id="initial-plan-and-challenges" class="level2">
-<h2 class="anchored" data-anchor-id="initial-plan-and-challenges">Initial plan and challenges</h2>
-<p>Back in September, I had planned to study Python and machine learning basics for a month before creating an online profile. Unfortunately, my motivation dwindled and I spent two months halfheartedly reading articles and making notes out of them. Nonetheless, I eventually created a resume using resources like <a href="https://www.youtube.com/@codebasics">codebasics</a> and Krish Naik’s videos and established profiles on job portals such as Naukri and LinkedIn. Soon after, I started receiving calls from various organizations, but the interview process was a reality check for me as my understanding of machine learning algorithms was only surface-level.</p>
-</section>
-<section id="learning-from-failures" class="level2">
-<h2 class="anchored" data-anchor-id="learning-from-failures">Learning from failures</h2>
-<p>In November, I learned some valuable lessons through my experiences.I would usually clear first round but would fail in second round one such example was I confidently answered questions related to my resume but was stumped when asked to elaborate on categorical data encoding like difference between label and hot encoding. Similarly, when asked about hypothesis testing, I gave a confused response and said alpha was 0.5 instead of 0.05. Despite making notes on Krish Naik’s Live <a href="https://www.youtube.com/watch?v=11unm2hmvOQ&amp;list=PLZoTAELRMXVMgtxAboeAx-D9qbnY94Yay&amp;ab_channel=KrishNaik">Statistics playlist</a>, I hadn’t covered these topics sincerely.</p>
-<p>However, instead of giving up, I used these experiences as motivation to learn and grow. I went back to my notes, re-studied the topics where I had made mistakes, and updated my notes accordingly. I realized that learning is a continuous process and that we can always improve.</p>
-<p>In the introduction, it is mentioned that I have specialized in time series data. However, due to the limited availability of data for some clients, I did not have much exposure to seasonal data and had only relied on regression-based models for time series analysis. Although I had previously attempted to use models such as Prophet and ARIMA, they did not yield favorable results, and I had not included them in my resume nor prepared them for the interviews. Unfortunately, during a technical interview(3rd technical round), I was asked about ACF, PACF, and the ADF test, and I was unable to answer these questions. To address this knowledge gap, I dedicated the next few weeks to learning the basics of time series terminology and models.</p>
-<section id="gaining-confidence" class="level3">
-<h3 class="anchored" data-anchor-id="gaining-confidence">Gaining confidence</h3>
-<p>Despite a dry spell in December where I didn’t receive any recruiter calls, I didn’t lose hope. Instead, I gained the confidence needed to crack technical interviews. I made sure to prepare well, studying topics in which I was lacking.</p>
-</section>
-</section>
-<section id="silver-lining" class="level2">
-<h2 class="anchored" data-anchor-id="silver-lining">Silver Lining</h2>
-<p>Long story short in January, I had received two offers with a 50% salary increase, but they were not in the FinTech industry, which was my goal. I was satisfied but not happy. Then, I cleared the first round of interviews for two companies, X and Y, on the same day while having a high fever (I’m not blowing my own trumpet, I mentioned this to make the point that if you work hard you will gain confidence eventually). One of the interviewers suggested I should reschedule, but I declined as I did not want to tarnish my reputation.</p>
-</section>
-<section id="alls-well-that-ends-well" class="level2">
-<h2 class="anchored" data-anchor-id="alls-well-that-ends-well">All’s Well that Ends Well</h2>
-<p>In February, I received an offer letter from company X with a 95% salary increase. During my last round of interviews with company Y, I showed them this offer, and they offered me a 150% salary increase, which was a dream come true. I deleted my profile from Naukri and this company Y happened to be TransUnion, a FinTech company where I joined as a Senior Analyst.</p>
-</section>
-<section id="the-reality-of-recruitment-process" class="level2">
-<h2 class="anchored" data-anchor-id="the-reality-of-recruitment-process">The Reality of Recruitment Process</h2>
-<p>I realized early on that the recruitment process is not always straightforward. I cleared the first round in one organization, only to be informed weeks later that they had filled the position internally. In two other organizations, after clearing the first round, I was later told that openings were closed. In another organization, I cleared three rounds and even submitted my documents, only to be told later that I was the second priority and the position was filled via referral. However, I didn’t let these setbacks discourage me, and I continued to persevere.</p>
-</section>
-<section id="the-journey-continues" class="level2">
-<h2 class="anchored" data-anchor-id="the-journey-continues">The Journey Continues</h2>
-<p>I learned that mistakes are an integral part of the learning process. Even though I had an offer from TransUnion I gave another interview (just of fun). The interview taught me about SARIMAX (we can use this for multivariate time series) and I knew only about ARIMA,SARIMA etc. which are univariate models. It was a humbling experience, but it taught me a valuable lesson that ‘You may think you know but actually you don’t’.</p>
-</section>
-<section id="insights" class="level2">
-<h2 class="anchored" data-anchor-id="insights">Insights</h2>
-<p>1. Set a clear and measurable goal for yourself.</p>
-<p>2. I found that building a strong online profile is essential when looking for job opportunities even before you started preparing because it take time to get a call.</p>
-<p>3. Make your resume plain and simple. Tailor your resume and cover letter to each position. Highlight your relevant skills and experience and show how you can add value to the company.</p>
-<p>4. Prepare for interviews by researching the company and practicing your responses to common interview questions. Dress professionally and arrive on time.</p>
-<p>5. It’s better to have a deep understanding of a few machine learning algorithms rather than a superficial understanding of many.</p>
-<p>6. Interviews can be nerve-wracking, but it’s essential to remain calm and not let anxiety take over.</p>
-<p>7. Keep your notes updated and review them regularly</p>
-<p>8. Follow up after interviews with a thank-you email or note, and express your continued interest in the position and also ask for the feed back(very important).</p>
-<p>9. There is no such thing called as perfect interview, you can’t answer 100% of the questions.</p>
-<p>10. Don’t be afraid to negotiate job offers. Do your research on salary ranges for the position and make a counter offer if necessary. <strong>This is the most important tip I can give you, as it can make a huge difference in your income and satisfaction.</strong></p>
-</section>
-<section id="study-sources" class="level2">
-<h2 class="anchored" data-anchor-id="study-sources">Study Sources</h2>
-<p>I found the book “<a href="https://amzn.eu/d/6lPwBfQ">Approaching Almost Any Machine Learning Problem</a>” by <a href="https://twitter.com/abhi1thakur">Abhishek Thakur</a> to be an excellent resource for building a strong foundation in machine learning.</p>
-<p>I also relied heavily on online resources like <a href="https://www.youtube.com/@statquest">Statquest</a> and <a href="https://www.youtube.com/@krishnaik06">Krish Naik’s</a> videos, as well as blogs on various websites like Medium, Towards Data Science, and Analytics Vidhya, like for Decision tree I think KDnuggets have one of the finest <a href="https://www.kdnuggets.com/2020/01/decision-tree-algorithm-explained.html">blog</a> on it.</p>
-<p><a href="https://huyenchip.com/ml-interviews-book/">Machine Learning Interviews Book by Chip Huyen</a> was another source from where I learned non technical (like how to negotiate salary) &amp; technical aspect of interview.</p>
-</section>
-<section id="conclusion" class="level2">
-<h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
-<p>In conclusion, my journey to landing a Senior Analyst role in a FinTech company was not easy, but it taught me valuable lessons about perseverance, learning from mistakes, and the importance of building a strong online profile. I hope my journey can inspire others to pursue their dreams and never give up, no matter how challenging the journey may be.</p>
-<p><strong>Hope</strong> that’s the key, be willing to work hard ‘<em>you will get success may not be today but tomorrow you surely will</em>’.</p>
-
-
-</section>
-
- ]]></description>
-  <category>Informative</category>
-  <category>Interview</category>
-  <guid>https://mekanavsharma.github.io/Blog/posts/Job-Search/</guid>
-  <pubDate>Wed, 22 Mar 2023 18:30:00 GMT</pubDate>
-  <media:content url="https://mekanavsharma.github.io/Blog/posts/Job-Search/image.jpg" medium="image" type="image/jpeg"/>
 </item>
 </channel>
 </rss>

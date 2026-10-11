@@ -1,0 +1,185 @@
+---
+title: "Part 1: Why vanilla RAG isn't enough for historical research"
+author: "Kanav Sharma"
+date: "2026-10-11"
+categories: [RAG, LLM, Indian History]
+image: "image.png"
+description: "Phase 0 of The Digital Historian. A hybrid RAG baseline for Indian history, and the questions it is not allowed to pretend it can answer."
+toc: true
+title-block-banner: true # "title_image.png"
+---
+
+I have spent my career building models on numbers: tabular data, time series, forecasting. Over the last couple of years my work moved to LLMs, RAG and agents. At work I could use RAG on business data. But I wanted to understand it properly, end to end, on a problem where I could *feel* when the answer was wrong.
+
+So I picked a topic I love: **Indian history**.
+
+This post is the first in a series on  [The Digital Historian](https://github.com/mekanavsharma/the-digital-historian) , a multi-phase RAG project I am building. I am learning as I go, so I will share the mistakes along with the wins. In this part I want to answer one question:
+
+> *If RAG exists, why can't I just plug my history books into a vanilla RAG pipeline and call it done?*
+
+
+## What I mean by "vanilla RAG"
+
+Almost every RAG tutorial follows the same four steps:
+
+1. Split documents into chunks.
+2. Convert each chunk into an embedding and store it in a vector database.
+3. At question time, embed the question and fetch the top-k most similar chunks.
+4. Paste those chunks into a prompt and let the LLM write the answer.
+
+```{mermaid}
+flowchart LR
+    A[Books / OCR text] --> B[Chunk]
+    B --> C[Embed + vector store]
+    Q[Question] --> D[Top-k similar chunks]
+    C --> D
+    D --> E[LLM prompt]
+    E --> F[Answer]
+```
+
+For a company FAQ or product manual, this works surprisingly well. I got a first version running in a day. Then I started asking it real history questions, and it fell apart in ways that were hard to notice, because the answers *sounded* confident.
+
+## Why history is a hard domain for RAG
+
+My corpus is a set of Indian history books, converted to text with OCR. Working with it showed me few problems that tutorials never mention.
+
+**The text is OCR, not prose.** One volume of *The History and Culture of the Indian People* took about 22 minutes to extract. Scans are not consistent. André Wink's *Al-Hind*, Volume 2, is two book pages on one image. Chapter titles and stray page numbers leak into the body. A hyphen at the end of a line becomes a word the embedder has never seen. If you embed that as if it were a clean Wikipedia paragraph, you are embedding the scanner.
+
+**Dates, names and spellings confuse embeddings** The same king shows up as Ashoka, Asoka, and the Mauryan emperor who issued the Kalinga edicts. A dense embedding often places those near each other. It does not have to. BM25 will not miss the spelling that is actually on the page. Dense search will not miss the description when the name is missing. Use only one of them and you will systematically drop one kind of evidence. Same goes for **Battle of Panipat** we had 3 battles 1526, 1556 and 1761.To an embedding model, “Battle of Panipat” chunks all look alike. Ask about the 1556 battle and you can easily get Babur’s 1526 victory or the Maratha defeat in 1761.
+
+
+**The question is often a constraint, not a topic.** "Before or after Kalinga" is a relation in time. Cosine similarity retrieves passages about Ashoka and passages about Kalinga. It does not retrieve the relation. The model then fills the relation in from pretraining, which is the textbook story I was trying not to trust.
+
+**The sources disagree on purpose.** While I was cleaning the data I labelled every chunk with a period (Ancient, Medieval, Modern) and a perspective (Nationalist, Marxist, Neutral). Phase 0 stores those labels. At query time it ignores them. The nearest chunk wins, the model blends, and a disagreement becomes a smooth paragraph. An average of historians is not a citation.
+
+```{mermaid}
+flowchart LR
+  Q["A history question"] --> V["Vanilla RAG<br/>embed, top-k, generate"]
+  V --> A["One fluent paragraph"]
+  A --> B["Looks answered"]
+  B --> C["No page, no author,<br/>no disagreement"]
+```
+
+## What Phase 0 actually does
+
+I did not ship that pipeline. I shipped the smallest system I was willing to measure. Fully local. No external API.
+
+```{mermaid}
+flowchart TD
+  Q["User question"] --> BM["BM25 · top 50"]
+  Q --> FV["FAISS · nomic-embed-text-v1.5 · top 60"]
+  BM --> RRF["Weighted reciprocal rank<br/>BM25 0.4 · FAISS 0.6<br/>dedupe on chunk_id"]
+  FV --> RRF
+  RRF --> H["Top 30"]
+  H --> CE["Cross-encoder rerank<br/>ms-marco-MiniLM-L-6-v2"]
+  CE --> T["Top 10 chunks"]
+  T --> P["Strict prompt<br/>context only, or say you don't know"]
+  P --> LLM["Local Qwen instruct model<br/>4-bit NF4"]
+  LLM --> OUT["Answer<br/>then every chunk id that entered the prompt"]
+```
+
+A chunk at rank `r` scores `weight / (r + k)`. If BM25 and FAISS both return the same `chunk_id`, I keep the document once and add the scores. The cross-encoder then reads the question next to the passage and reorders that list. Only ten chunks are allowed into the prompt, and the prompt is capped at about 10,000 characters.
+
+The instruction to the model is not polite. Use only the context. Do not bring in outside knowledge. If the context has nothing, say you don't know. Write a paragraph. Do not invent `chunk_id` tokens. I append those myself, after generation, from the chunks that were actually in the prompt. I do not trust the model to cite.
+
+Length is a parameter, not a vibe: `short`, `concise`, or `detailed`, with an optional word cap.
+
+The part that took the time was not the retriever. It was the pages.
+
+After OCR I strip chapter headers, standalone page numbers, and hyphenation across line breaks. I do not cut a page in isolation. A slice of the previous page and the next page is carried onto the current page, so a claim that crosses a page break still exists, and the page number stays attached. A recursive splitter then cuts that into chunks of about 1,600 characters with 200 characters of overlap. Every chunk gets an id that I can read without opening the file:
+
+`HCIP_RCM_V2_C5_P143_1`
+
+series, volume, chapter, page, piece. Building the FAISS index over the full corpus took about 50 minutes on a Kaggle P100. After that the index is just read. The processed corpus is 167 MB of JSONL, on [Kaggle](https://www.kaggle.com/datasets/kanav608/input-data), because it does not belong in git.
+
+## One answer, seven chunk ids
+
+This is a real run, concise style.
+
+```text
+Query: Can you check and tell when did Ashoka became Buddhist was it before or after Kalinga, why did he became?
+
+Ashoka became Buddhist before the Kalinga war. According to the context, he became a Buddhist before the Kalinga war, around 265 BCE, as an upasaka. The remorse he felt after the Kalinga war deepened his belief in Buddhism, leading him to adopt it as a central pursuit. This conversion was not immediate but developed gradually over time, culminating in a strong commitment to Buddhist principles and practices. The Kalinga war served as a catalyst for his spiritual transformation, prompting him to seek solace and guidance in Buddhism.
+
+[chunk_id=HCIP_RCM_V2_C5_P143_1]
+[chunk_id=ASOKA_RKM_C2_P43_1]
+[chunk_id=EARLY_INDIA_RTH_C6_P288_0]
+[chunk_id=GEM_LOTUS_AE_C6_P486_1]
+[chunk_id=AL_HIND_AW_V2_C10_P176_2]
+[chunk_id=EARLY_INDIA_RTH_C6_P262_1]
+[chunk_id=WTWI_ALB_C3_P112_1]
+```
+
+The content is more careful than the textbook line. It says he was an upasaka before the war, around 265 BCE, and that Kalinga deepened a belief that was already there. I am not asking you to treat that as settled. I am asking you to look at how it is written.
+
+"According to the context" is not a historian's phrase. It is the prompt leaking into the answer. And then the last line:
+
+| Prefix | Where it came from |
+| --- | --- |
+| `HCIP_RCM` | *The History and Culture of the Indian People*, R.C. Majumdar |
+| `ASOKA_RKM` | *Asoka*, R.K. Mukherjee |
+| `EARLY_INDIA_RTH` | *Early India*, Romila Thapar |
+| `GEM_LOTUS_AE` | *Gem in the Lotus*, Abraham Eraly |
+| `AL_HIND_AW` | *Al-Hind*, André Wink |
+| `WTWI_ALB` | *The Wonder That Was India*, A.L. Basham |
+
+Seven ids. Six books. One paragraph. No sentence is tied to a book. If Thapar and Majumdar diverge inside those pages, this format cannot say so. It can only look sure.
+
+That is the hole. Hybrid search got me into the right neighbourhood. It did not give me a historian.
+
+## The number I do not want quoted back at me
+
+On the evaluation set I had for this config, hybrid retrieval plus the reranker scored about **ROUGE-1 0.44** and **ROUGE-L 0.29** against the reference answers.
+
+I am publishing it because a baseline without a number is a demo. I am also telling you not to be impressed.
+
+ROUGE counts overlapping words. A fluent paragraph that picks the wrong side of a debate can beat a short, correct, cited one. It cannot see the failure I actually care about, which is attribution. It cannot tell "the context supports this" from "the model remembered this from pretraining and the context happened to rhyme." Later in the series the measurement moves to faithfulness, context precision, and whether a citation points at the sentence that was used. ROUGE can stay as a sanity check. It is not the verdict.
+
+There is a second honesty problem in the harness. It reports the hybrid system. It does not yet report BM25 alone, FAISS alone, and hybrid side by side. So I will not claim, in this post, that I have measured the gap. The argument above is about what a single ranked list cannot represent. The ablation is still owed.
+
+## Five breaks that a better top-k will not fix
+
+These are from questions I actually run.
+
+**1. One voice.** "How did Ashoka rule his subjects?" is not the same question in Thapar and in Mukherjee. Phase 0 retrieves both if they sit near the query, then writes a single answer. Comparison is a different task. It needs a lane per historian, and a step that refuses to merge them until someone asks for the comparison. That is Part 2.
+
+**2. The follow-up.** "Why did he?" is not a retrieval query. Phase 0 has no memory. The pronoun goes into BM25 as the word "he". The question has to be rewritten into "Why did Ashoka become a Buddhist?" before anything is searched. That is also Part 2.
+
+**3. A relation that no single chunk holds.** "Did Savarkar's writing reach Bhagat Singh?" is two people and an edge. Top-k returns essays about each of them. It returns the edge only when some 1,600-character window happens to contain both names. Part 3 puts people, organisations and a timeline in a graph, and checks that against the vector hits instead of hoping the chunk boundary was kind.
+
+**4. The right shelf, not the nearest chunk.** A question about the drain of wealth, and a question about the same years written as a nationalist narrative, should not be answered from the same pile. The labels are already on the chunks. Phase 0 does not filter on them. Part 4 routes the question to a period and a perspective, keeps only those chunks, and fine-tunes the generator so it answers from the retrieved pages and ignores the distractors that retrieval always lets through.
+
+**5. A citation you can check.** Appending every chunk id that entered the prompt is an honest description of what the model was shown. It is not a citation. A citation is: this sentence, that page. Part 5 trains that behaviour, then runs a generate, critique, refine loop that is allowed to rewrite only when a faithfulness score fails. The model's own confidence is not the score.
+
+```{mermaid}
+flowchart LR
+  P0["Part 1 · Phase 0<br/>hybrid retrieve, one answer"] --> P1["Part 2 · Phase 1<br/>rewrite, memory,<br/>one lane per historian"]
+  P1 --> P2["Part 3 · Phase 2<br/>graph, timeline,<br/>multi-hop"]
+  P2 --> P3["Part 4 · Phase 3<br/>route by period and school,<br/>RAFT"]
+  P3 --> P4["Part 5 · Phase 4<br/>inline citations,<br/>DPO, self-check"]
+```
+
+Two smaller choices I am not promoting into their own phase. The reranker only sees the first 1,024 characters of a chunk. Generation samples at temperature 0.3. For a system whose job is to stay on the page, sampling is a luxury. I would rather be repetitive than inventive. I have not turned it off. I am writing it down so the knob stays a decision and not a default I forgot about.
+
+## What I am not claiming
+
+Phase 0 is a control. It is local, it cites the chunks it saw, and it will say it doesn't know when the prompt is doing its job. It is not a research assistant.
+
+It will not tell you when two books conflict. It will not hold the thread of a conversation. It will not refuse a nearest-neighbour answer that came from the wrong school of history. A small model still walks past a strict prompt in boring ways, and ROUGE will clap for it.
+
+If you want to run the control yourself:
+
+```bash
+python -m phase_0_rag_baseline.run_query \
+  --query "When did Ashoka become a Buddhist, before or after Kalinga, and why?" \
+  --answer_style concise
+```
+
+Code: [github.com/mekanavsharma/the-digital-historian](https://github.com/mekanavsharma/the-digital-historian)
+
+Corpus: [Indian History JSONL on Kaggle](https://www.kaggle.com/datasets/kanav608/input-data)
+
+## Next Saturday
+
+Part 2 is the same corpus and the same hybrid retriever. The difference is the thing I actually want to show. Not the framework. A follow-up, "how did he rule?", rewritten to Ashoka before search runs, and two historians held in separate lanes so they cannot be averaged into a paragraph that neither of them wrote.
+

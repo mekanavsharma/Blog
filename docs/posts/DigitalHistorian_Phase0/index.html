@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.554">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Kanav Sharma">
+<meta name="dcterms.date" content="2026-10-10">
+<meta name="description" content="Phase 0 of The Digital Historian. A hybrid RAG baseline for Indian history, and the questions it is not allowed to pretend it can answer.">
+
+<title>Blog - Part 1: Why vanilla RAG isn’t enough for historical research</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner {
+        background-image: url(title_image.png);
+background-size: cover;
+      }
+</style>
+<script src="../../site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="../../site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/kanav608"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/kanavsh/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Part 1: Why vanilla RAG isn’t enough for historical research</h1>
+                  <div>
+        <div class="description">
+          Phase 0 of The Digital Historian. A hybrid RAG baseline for Indian history, and the questions it is not allowed to pretend it can answer.
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">RAG</div>
+                <div class="quarto-category">LLM</div>
+                <div class="quarto-category">Indian History</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Kanav Sharma </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">October 10, 2026</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#what-i-mean-by-vanilla-rag" id="toc-what-i-mean-by-vanilla-rag" class="nav-link active" data-scroll-target="#what-i-mean-by-vanilla-rag">What I mean by vanilla RAG</a></li>
+  <li><a href="#what-phase-0-actually-does" id="toc-what-phase-0-actually-does" class="nav-link" data-scroll-target="#what-phase-0-actually-does">What Phase 0 actually does</a></li>
+  <li><a href="#one-answer-seven-chunk-ids" id="toc-one-answer-seven-chunk-ids" class="nav-link" data-scroll-target="#one-answer-seven-chunk-ids">One answer, seven chunk ids</a></li>
+  <li><a href="#the-number-i-do-not-want-quoted-back-at-me" id="toc-the-number-i-do-not-want-quoted-back-at-me" class="nav-link" data-scroll-target="#the-number-i-do-not-want-quoted-back-at-me">The number I do not want quoted back at me</a></li>
+  <li><a href="#five-breaks-that-a-better-top-k-will-not-fix" id="toc-five-breaks-that-a-better-top-k-will-not-fix" class="nav-link" data-scroll-target="#five-breaks-that-a-better-top-k-will-not-fix">Five breaks that a better top-k will not fix</a></li>
+  <li><a href="#what-i-am-not-claiming" id="toc-what-i-am-not-claiming" class="nav-link" data-scroll-target="#what-i-am-not-claiming">What I am not claiming</a></li>
+  <li><a href="#next-saturday" id="toc-next-saturday" class="nav-link" data-scroll-target="#next-saturday">Next Saturday</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<p>Ask a normal RAG demo when Ashoka became a Buddhist, before or after Kalinga, and why. It will answer. That is the problem.</p>
+<p>The textbook version is one sentence. The books are not. On my shelf, R.C. Majumdar, R.K. Mukherjee, Romila Thapar, A.L. Basham, André Wink and Abraham Eraly do not share a paragraph, and they do not always tell the same story. A pipeline that pulls back a handful of chunks and writes one confident answer has already decided, quietly, that history has a single voice.</p>
+<p>I have been building <a href="https://github.com/mekanavsharma/the-digital-historian">The Digital Historian</a> to do a narrower thing. Answer questions about Indian history from OCR’d books, and show the page. This post is Phase 0. It is the baseline I wanted in place before I was willing to call anything else an improvement.</p>
+<p>It is already more than vanilla RAG. It is still not enough. The rest of this series is the list of ways it fails.</p>
+<section id="what-i-mean-by-vanilla-rag" class="level2">
+<h2 class="anchored" data-anchor-id="what-i-mean-by-vanilla-rag">What I mean by vanilla RAG</h2>
+<p>Chunk the corpus. Embed the chunks. Embed the question. Take the nearest neighbours. Paste them under the question. Ask a language model to answer.</p>
+<p>That is a good default for a company handbook. A handbook has one author, one vocabulary, and a question that usually lives inside one section. The corpus I actually have on disk has none of those properties.</p>
+<p><strong>The text is OCR, not prose.</strong> One volume of <em>The History and Culture of the Indian People</em> took about 22 minutes to extract. Scans are not consistent. André Wink’s <em>Al-Hind</em>, Volume 2, is two book pages on one image. Chapter titles and stray page numbers leak into the body. A hyphen at the end of a line becomes a word the embedder has never seen. If you embed that as if it were a clean Wikipedia paragraph, you are embedding the scanner.</p>
+<p><strong>Names do not sit still.</strong> The same king shows up as Ashoka, Asoka, and the Mauryan emperor who issued the Kalinga edicts. A dense embedding often places those near each other. It does not have to. BM25 will not miss the spelling that is actually on the page. Dense search will not miss the description when the name is missing. Use only one of them and you will systematically drop one kind of evidence.</p>
+<p><strong>The question is often a constraint, not a topic.</strong> “Before or after Kalinga” is a relation in time. Cosine similarity retrieves passages about Ashoka and passages about Kalinga. It does not retrieve the relation. The model then fills the relation in from pretraining, which is the textbook story I was trying not to trust.</p>
+<p><strong>The sources disagree on purpose.</strong> While I was cleaning the data I labelled every chunk with a period (Ancient, Medieval, Modern) and a perspective (Nationalist, Marxist, Neutral). Phase 0 stores those labels. At query time it ignores them. The nearest chunk wins, the model blends, and a disagreement becomes a smooth paragraph. An average of historians is not a citation.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  Q["A history question"] --&gt; V["Vanilla RAG&lt;br/&gt;embed, top-k, generate"]
+  V --&gt; A["One fluent paragraph"]
+  A --&gt; B["Looks answered"]
+  B --&gt; C["No page, no author,&lt;br/&gt;no disagreement"]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="what-phase-0-actually-does" class="level2">
+<h2 class="anchored" data-anchor-id="what-phase-0-actually-does">What Phase 0 actually does</h2>
+<p>I did not ship that pipeline. I shipped the smallest system I was willing to measure. Fully local. No external API.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  Q["User question"] --&gt; BM["BM25 · top 50"]
+  Q --&gt; FV["FAISS · nomic-embed-text-v1.5 · top 60"]
+  BM --&gt; RRF["Weighted reciprocal rank&lt;br/&gt;BM25 0.4 · FAISS 0.6&lt;br/&gt;dedupe on chunk_id"]
+  FV --&gt; RRF
+  RRF --&gt; H["Top 30"]
+  H --&gt; CE["Cross-encoder rerank&lt;br/&gt;ms-marco-MiniLM-L-6-v2"]
+  CE --&gt; T["Top 10 chunks"]
+  T --&gt; P["Strict prompt&lt;br/&gt;context only, or say you don't know"]
+  P --&gt; LLM["Local Qwen instruct model&lt;br/&gt;4-bit NF4"]
+  LLM --&gt; OUT["Answer&lt;br/&gt;then every chunk id that entered the prompt"]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>A chunk at rank <code>r</code> scores <code>weight / (r + k)</code>. If BM25 and FAISS both return the same <code>chunk_id</code>, I keep the document once and add the scores. The cross-encoder then reads the question next to the passage and reorders that list. Only ten chunks are allowed into the prompt, and the prompt is capped at about 10,000 characters.</p>
+<p>The instruction to the model is not polite. Use only the context. Do not bring in outside knowledge. If the context has nothing, say you don’t know. Write a paragraph. Do not invent <code>chunk_id</code> tokens. I append those myself, after generation, from the chunks that were actually in the prompt. I do not trust the model to cite.</p>
+<p>Length is a parameter, not a vibe: <code>short</code>, <code>concise</code>, or <code>detailed</code>, with an optional word cap.</p>
+<p>The part that took the time was not the retriever. It was the pages.</p>
+<p>After OCR I strip chapter headers, standalone page numbers, and hyphenation across line breaks. I do not cut a page in isolation. A slice of the previous page and the next page is carried onto the current page, so a claim that crosses a page break still exists, and the page number stays attached. A recursive splitter then cuts that into chunks of about 1,600 characters with 200 characters of overlap. Every chunk gets an id that I can read without opening the file:</p>
+<p><code>HCIP_RCM_V2_C5_P143_1</code></p>
+<p>series, volume, chapter, page, piece. Building the FAISS index over the full corpus took about 35 minutes on a Kaggle P100. After that the index is just read. The processed corpus is 167 MB of JSONL, on <a href="https://www.kaggle.com/datasets/kanav608/input-data">Kaggle</a>, because it does not belong in git.</p>
+</section>
+<section id="one-answer-seven-chunk-ids" class="level2">
+<h2 class="anchored" data-anchor-id="one-answer-seven-chunk-ids">One answer, seven chunk ids</h2>
+<p>This is a real run, concise style, from the Phase 0 README.</p>
+<pre class="text"><code>Query: Can you check and tell when did Ashoka or Asoka became Buddhist
+before or after Kalinga, why did he became?
+
+Ashoka became Buddhist before the Kalinga war. According to the context, he became a Buddhist before the Kalinga war, around 265 BCE, as an upasaka. The remorse he felt after the Kalinga war deepened his belief in Buddhism, leading him to adopt it as a central pursuit. This conversion was not immediate but developed gradually over time, culminating in a strong commitment to Buddhist principles and practices. The Kalinga war served as a catalyst for his spiritual transformation, prompting him to seek solace and guidance in Buddhism.
+
+[chunk_id=HCIP_RCM_V2_C5_P143_1]
+[chunk_id=ASOKA_RKM_C2_P43_1]
+[chunk_id=EARLY_INDIA_RTH_C6_P288_0]
+[chunk_id=GEM_LOTUS_AE_C6_P486_1]
+[chunk_id=AL_HIND_AW_V2_C10_P176_2]
+[chunk_id=EARLY_INDIA_RTH_C6_P262_1]
+[chunk_id=WTWI_ALB_C3_P112_1]</code></pre>
+<p>The content is more careful than the textbook line. It says he was an upasaka before the war, around 265 BCE, and that Kalinga deepened a belief that was already there. I am not asking you to treat that as settled. I am asking you to look at how it is written.</p>
+<p>“According to the context” is not a historian’s phrase. It is the prompt leaking into the answer. And then the last line:</p>
+<table class="table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Prefix</th>
+<th>Where it came from</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>HCIP_RCM</code></td>
+<td><em>The History and Culture of the Indian People</em>, R.C. Majumdar</td>
+</tr>
+<tr class="even">
+<td><code>ASOKA_RKM</code></td>
+<td><em>Asoka</em>, R.K. Mukherjee</td>
+</tr>
+<tr class="odd">
+<td><code>EARLY_INDIA_RTH</code></td>
+<td><em>Early India</em>, Romila Thapar</td>
+</tr>
+<tr class="even">
+<td><code>GEM_LOTUS_AE</code></td>
+<td><em>Gem in the Lotus</em>, Abraham Eraly</td>
+</tr>
+<tr class="odd">
+<td><code>AL_HIND_AW</code></td>
+<td><em>Al-Hind</em>, André Wink</td>
+</tr>
+<tr class="even">
+<td><code>WTWI_ALB</code></td>
+<td><em>The Wonder That Was India</em>, A.L. Basham</td>
+</tr>
+</tbody>
+</table>
+<p>Seven ids. Six books. One paragraph. No sentence is tied to a book. If Thapar and Majumdar diverge inside those pages, this format cannot say so. It can only look sure.</p>
+<p>That is the hole. Hybrid search got me into the right neighbourhood. It did not give me a historian.</p>
+</section>
+<section id="the-number-i-do-not-want-quoted-back-at-me" class="level2">
+<h2 class="anchored" data-anchor-id="the-number-i-do-not-want-quoted-back-at-me">The number I do not want quoted back at me</h2>
+<p>On the evaluation set I had for this config, hybrid retrieval plus the reranker scored about <strong>ROUGE-1 0.44</strong> and <strong>ROUGE-L 0.29</strong> against the reference answers.</p>
+<p>I am publishing it because a baseline without a number is a demo. I am also telling you not to be impressed.</p>
+<p>ROUGE counts overlapping words. A fluent paragraph that picks the wrong side of a debate can beat a short, correct, cited one. It cannot see the failure I actually care about, which is attribution. It cannot tell “the context supports this” from “the model remembered this from pretraining and the context happened to rhyme.” Later in the series the measurement moves to faithfulness, context precision, and whether a citation points at the sentence that was used. ROUGE can stay as a sanity check. It is not the verdict.</p>
+<p>There is a second honesty problem in the harness. It reports the hybrid system. It does not yet report BM25 alone, FAISS alone, and hybrid side by side. So I will not claim, in this post, that I have measured the gap. The argument above is about what a single ranked list cannot represent. The ablation is still owed.</p>
+</section>
+<section id="five-breaks-that-a-better-top-k-will-not-fix" class="level2">
+<h2 class="anchored" data-anchor-id="five-breaks-that-a-better-top-k-will-not-fix">Five breaks that a better top-k will not fix</h2>
+<p>These are from questions I actually run.</p>
+<p><strong>1. One voice.</strong> “How did Ashoka rule his subjects?” is not the same question in Thapar and in Mukherjee. Phase 0 retrieves both if they sit near the query, then writes a single answer. Comparison is a different task. It needs a lane per historian, and a step that refuses to merge them until someone asks for the comparison. That is Part 2.</p>
+<p><strong>2. The follow-up.</strong> “Why did he?” is not a retrieval query. Phase 0 has no memory. The pronoun goes into BM25 as the word “he”. The question has to be rewritten into “Why did Ashoka become a Buddhist?” before anything is searched. That is also Part 2.</p>
+<p><strong>3. A relation that no single chunk holds.</strong> “Did Savarkar’s writing reach Bhagat Singh?” is two people and an edge. Top-k returns essays about each of them. It returns the edge only when some 1,600-character window happens to contain both names. Part 3 puts people, organisations and a timeline in a graph, and checks that against the vector hits instead of hoping the chunk boundary was kind.</p>
+<p><strong>4. The right shelf, not the nearest chunk.</strong> A question about the drain of wealth, and a question about the same years written as a nationalist narrative, should not be answered from the same pile. The labels are already on the chunks. Phase 0 does not filter on them. Part 4 routes the question to a period and a perspective, keeps only those chunks, and fine-tunes the generator so it answers from the retrieved pages and ignores the distractors that retrieval always lets through.</p>
+<p><strong>5. A citation you can check.</strong> Appending every chunk id that entered the prompt is an honest description of what the model was shown. It is not a citation. A citation is: this sentence, that page. Part 5 trains that behaviour, then runs a generate, critique, refine loop that is allowed to rewrite only when a faithfulness score fails. The model’s own confidence is not the score.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  P0["Part 1 · Phase 0&lt;br/&gt;hybrid retrieve, one answer"] --&gt; P1["Part 2 · Phase 1&lt;br/&gt;rewrite, memory,&lt;br/&gt;one lane per historian"]
+  P1 --&gt; P2["Part 3 · Phase 2&lt;br/&gt;graph, timeline,&lt;br/&gt;multi-hop"]
+  P2 --&gt; P3["Part 4 · Phase 3&lt;br/&gt;route by period and school,&lt;br/&gt;RAFT"]
+  P3 --&gt; P4["Part 5 · Phase 4&lt;br/&gt;inline citations,&lt;br/&gt;DPO, self-check"]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>Two smaller choices I am not promoting into their own phase. The reranker only sees the first 1,024 characters of a chunk. Generation samples at temperature 0.3. For a system whose job is to stay on the page, sampling is a luxury. I would rather be repetitive than inventive. I have not turned it off. I am writing it down so the knob stays a decision and not a default I forgot about.</p>
+</section>
+<section id="what-i-am-not-claiming" class="level2">
+<h2 class="anchored" data-anchor-id="what-i-am-not-claiming">What I am not claiming</h2>
+<p>Phase 0 is a control. It is local, it cites the chunks it saw, and it will say it doesn’t know when the prompt is doing its job. It is not a research assistant.</p>
+<p>It will not tell you when two books conflict. It will not hold the thread of a conversation. It will not refuse a nearest-neighbour answer that came from the wrong school of history. A small model still walks past a strict prompt in boring ways, and ROUGE will clap for it.</p>
+<p>If you want to run the control yourself:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> phase_0_rag_baseline.run_query <span class="dt">\</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--query</span> <span class="st">"When did Ashoka become a Buddhist, before or after Kalinga, and why?"</span> <span class="dt">\</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--answer_style</span> concise</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Code: <a href="https://github.com/mekanavsharma/the-digital-historian">github.com/mekanavsharma/the-digital-historian</a></p>
+<p>Corpus: <a href="https://www.kaggle.com/datasets/kanav608/input-data">Indian History JSONL on Kaggle</a></p>
+</section>
+<section id="next-saturday" class="level2">
+<h2 class="anchored" data-anchor-id="next-saturday">Next Saturday</h2>
+<p>Part 2 is the same corpus and the same hybrid retriever. The difference is the thing I actually want to show. Not the framework. A follow-up, “how did he rule?”, rewritten to Ashoka before search runs, and two historians held in separate lanes so they cannot be averaged into a paragraph that neither of them wrote.</p>
+<p>If you have broken a RAG system on sources that disagree, I want the failure more than the architecture diagram. The repo is the long version of this post.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp("https:\/\/mekanavsharma\.github\.io\/Blog\/");
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

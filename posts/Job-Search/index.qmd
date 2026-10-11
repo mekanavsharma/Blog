@@ -7,6 +7,7 @@ image: "image.jpg"
 description: A blog regarding how I got what I wanted
 title-block-banner: true  #it has image in title
 order: 0
+draft: true   # blog won't be publish
 ---
 
 Are you tired of feeling stuck in your career? Do you dream of making a significant change but don't know where to start? As a data scientist specializing in time series modeling and regression-based models using R, I felt exactly the same way. But I'm here to tell you that with the right mindset and a little bit of hard work, anything is possible.
