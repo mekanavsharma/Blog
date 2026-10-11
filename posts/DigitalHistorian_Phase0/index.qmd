@@ -3,7 +3,7 @@ title: "Part 1: Why vanilla RAG isn't enough for historical research"
 author: "Kanav Sharma"
 date: "2026-10-11"
 categories: [RAG, LLM, Indian History]
-image: "Phase0_Image.jpg"
+image: "Image.png"
 description: "Phase 0 of The Digital Historian. A hybrid RAG baseline for Indian history, and the questions it is not allowed to pretend it can answer."
 toc: true
 title-block-banner: true  
