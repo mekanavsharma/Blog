@@ -1,22 +1,25 @@
 ---
 title: "About"
-image: Kanav_profile.jpg
-resources: Resume_Kanav.pdf
+resources:
+  - Resume_Kanav.pdf
 about:
-  template: solana # jolla, trestles, solana, marquee, broadside
+  template: solana
+  image: Kanav_profile.jpg
+  image-width: 10em
+  image-shape: round
   links:
-    # - icon: twitter
-    #   text: Twitter
-    #   href: https://twitter.com/kanav608
-    # - icon: envelope
-    #   text: Email
-    #   href: kanav608@gmail.com
     - icon: github
       text: Github
       href: https://github.com/mekanavsharma
     - icon: file-text
       text: Resume
       href: Resume_Kanav.pdf
+    # - icon: twitter
+    #   text: Twitter
+    #   href: https://twitter.com/kanav608
+    # - icon: envelope
+    #   text: Email
+    #   href: kanav608@gmail.com
 ---
 
 Data Scientist with more than 7 years of experience developing machine learning, deep learning, forecasting, NLP, and Generative AI solutions across FMCG, banking, credit analytics, and power sectors. Built production-grade Agentic AI, Agentic RAG, GraphRAG, and multi-agent systems on Databricks, fine-tuned LLMs using LoRA, QLoRA, PEFT, RAFT, and DPO, and evaluated model quality using RAGAS and LLM Eval frameworks. Partnered closely with cross-functional stakeholders throughout delivery, translating technical work into measurable business impact through AI-driven automation and predictive analytics.
