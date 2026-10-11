@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Kanav Sharma">
-<meta name="dcterms.date" content="2026-10-10">
+<meta name="dcterms.date" content="2026-10-11">
 <meta name="description" content="Phase 0 of The Digital Historian. A hybrid RAG baseline for Indian history, and the questions it is not allowed to pretend it can answer.">
 
 <title>Blog - Part 1: Why vanilla RAG isn’t enough for historical research</title>
@@ -105,13 +105,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<style>
-
-      .quarto-title-block .quarto-title-banner {
-        background-image: url(title_image.png);
-background-size: cover;
-      }
-</style>
 <script src="../../site_libs/quarto-diagram/mermaid.min.js"></script>
 <script src="../../site_libs/quarto-diagram/mermaid-init.js"></script>
 <link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
@@ -190,7 +183,7 @@ background-size: cover;
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">October 10, 2026</p>
+        <p class="date">October 11, 2026</p>
       </div>
     </div>
     
@@ -206,7 +199,8 @@ background-size: cover;
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#what-i-mean-by-vanilla-rag" id="toc-what-i-mean-by-vanilla-rag" class="nav-link active" data-scroll-target="#what-i-mean-by-vanilla-rag">What I mean by vanilla RAG</a></li>
+  <li><a href="#what-i-mean-by-vanilla-rag" id="toc-what-i-mean-by-vanilla-rag" class="nav-link active" data-scroll-target="#what-i-mean-by-vanilla-rag">What I mean by “vanilla RAG”</a></li>
+  <li><a href="#why-history-is-a-hard-domain-for-rag" id="toc-why-history-is-a-hard-domain-for-rag" class="nav-link" data-scroll-target="#why-history-is-a-hard-domain-for-rag">Why history is a hard domain for RAG</a></li>
   <li><a href="#what-phase-0-actually-does" id="toc-what-phase-0-actually-does" class="nav-link" data-scroll-target="#what-phase-0-actually-does">What Phase 0 actually does</a></li>
   <li><a href="#one-answer-seven-chunk-ids" id="toc-one-answer-seven-chunk-ids" class="nav-link" data-scroll-target="#one-answer-seven-chunk-ids">One answer, seven chunk ids</a></li>
   <li><a href="#the-number-i-do-not-want-quoted-back-at-me" id="toc-the-number-i-do-not-want-quoted-back-at-me" class="nav-link" data-scroll-target="#the-number-i-do-not-want-quoted-back-at-me">The number I do not want quoted back at me</a></li>
@@ -223,16 +217,46 @@ background-size: cover;
 
 
 
-<p>Ask a normal RAG demo when Ashoka became a Buddhist, before or after Kalinga, and why. It will answer. That is the problem.</p>
-<p>The textbook version is one sentence. The books are not. On my shelf, R.C. Majumdar, R.K. Mukherjee, Romila Thapar, A.L. Basham, André Wink and Abraham Eraly do not share a paragraph, and they do not always tell the same story. A pipeline that pulls back a handful of chunks and writes one confident answer has already decided, quietly, that history has a single voice.</p>
-<p>I have been building <a href="https://github.com/mekanavsharma/the-digital-historian">The Digital Historian</a> to do a narrower thing. Answer questions about Indian history from OCR’d books, and show the page. This post is Phase 0. It is the baseline I wanted in place before I was willing to call anything else an improvement.</p>
-<p>It is already more than vanilla RAG. It is still not enough. The rest of this series is the list of ways it fails.</p>
+<p>I have spent my career building models on numbers: tabular data, time series, forecasting. Over the last couple of years my work moved to LLMs, RAG and agents. At work I could use RAG on business data. But I wanted to understand it properly, end to end, on a problem where I could <em>feel</em> when the answer was wrong.</p>
+<p>So I picked a topic I love: <strong>Indian history</strong>.</p>
+<p>This post is the first in a series on <a href="https://github.com/mekanavsharma/the-digital-historian">The Digital Historian</a> , a multi-phase RAG project I am building. I am learning as I go, so I will share the mistakes along with the wins. In this part I want to answer one question:</p>
+<blockquote class="blockquote">
+<p><em>If RAG exists, why can’t I just plug my history books into a vanilla RAG pipeline and call it done?</em></p>
+</blockquote>
 <section id="what-i-mean-by-vanilla-rag" class="level2">
-<h2 class="anchored" data-anchor-id="what-i-mean-by-vanilla-rag">What I mean by vanilla RAG</h2>
-<p>Chunk the corpus. Embed the chunks. Embed the question. Take the nearest neighbours. Paste them under the question. Ask a language model to answer.</p>
-<p>That is a good default for a company handbook. A handbook has one author, one vocabulary, and a question that usually lives inside one section. The corpus I actually have on disk has none of those properties.</p>
+<h2 class="anchored" data-anchor-id="what-i-mean-by-vanilla-rag">What I mean by “vanilla RAG”</h2>
+<p>Almost every RAG tutorial follows the same four steps:</p>
+<ol type="1">
+<li>Split documents into chunks.</li>
+<li>Convert each chunk into an embedding and store it in a vector database.</li>
+<li>At question time, embed the question and fetch the top-k most similar chunks.</li>
+<li>Paste those chunks into a prompt and let the LLM write the answer.</li>
+</ol>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+    A[Books / OCR text] --&gt; B[Chunk]
+    B --&gt; C[Embed + vector store]
+    Q[Question] --&gt; D[Top-k similar chunks]
+    C --&gt; D
+    D --&gt; E[LLM prompt]
+    E --&gt; F[Answer]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>For a company FAQ or product manual, this works surprisingly well. I got a first version running in a day. Then I started asking it real history questions, and it fell apart in ways that were hard to notice, because the answers <em>sounded</em> confident.</p>
+</section>
+<section id="why-history-is-a-hard-domain-for-rag" class="level2">
+<h2 class="anchored" data-anchor-id="why-history-is-a-hard-domain-for-rag">Why history is a hard domain for RAG</h2>
+<p>My corpus is a set of Indian history books, converted to text with OCR. Working with it showed me few problems that tutorials never mention.</p>
 <p><strong>The text is OCR, not prose.</strong> One volume of <em>The History and Culture of the Indian People</em> took about 22 minutes to extract. Scans are not consistent. André Wink’s <em>Al-Hind</em>, Volume 2, is two book pages on one image. Chapter titles and stray page numbers leak into the body. A hyphen at the end of a line becomes a word the embedder has never seen. If you embed that as if it were a clean Wikipedia paragraph, you are embedding the scanner.</p>
-<p><strong>Names do not sit still.</strong> The same king shows up as Ashoka, Asoka, and the Mauryan emperor who issued the Kalinga edicts. A dense embedding often places those near each other. It does not have to. BM25 will not miss the spelling that is actually on the page. Dense search will not miss the description when the name is missing. Use only one of them and you will systematically drop one kind of evidence.</p>
+<p><strong>Dates, names and spellings confuse embeddings</strong> The same king shows up as Ashoka, Asoka, and the Mauryan emperor who issued the Kalinga edicts. A dense embedding often places those near each other. It does not have to. BM25 will not miss the spelling that is actually on the page. Dense search will not miss the description when the name is missing. Use only one of them and you will systematically drop one kind of evidence. Same goes for <strong>Battle of Panipat</strong> we had 3 battles 1526, 1556 and 1761.To an embedding model, “Battle of Panipat” chunks all look alike. Ask about the 1556 battle and you can easily get Babur’s 1526 victory or the Maratha defeat in 1761.</p>
 <p><strong>The question is often a constraint, not a topic.</strong> “Before or after Kalinga” is a relation in time. Cosine similarity retrieves passages about Ashoka and passages about Kalinga. It does not retrieve the relation. The model then fills the relation in from pretraining, which is the textbook story I was trying not to trust.</p>
 <p><strong>The sources disagree on purpose.</strong> While I was cleaning the data I labelled every chunk with a period (Ancient, Medieval, Modern) and a perspective (Nationalist, Marxist, Neutral). Phase 0 stores those labels. At query time it ignores them. The nearest chunk wins, the model blends, and a disagreement becomes a smooth paragraph. An average of historians is not a citation.</p>
 <div class="cell" data-layout-align="default">
@@ -283,13 +307,12 @@ background-size: cover;
 <p>The part that took the time was not the retriever. It was the pages.</p>
 <p>After OCR I strip chapter headers, standalone page numbers, and hyphenation across line breaks. I do not cut a page in isolation. A slice of the previous page and the next page is carried onto the current page, so a claim that crosses a page break still exists, and the page number stays attached. A recursive splitter then cuts that into chunks of about 1,600 characters with 200 characters of overlap. Every chunk gets an id that I can read without opening the file:</p>
 <p><code>HCIP_RCM_V2_C5_P143_1</code></p>
-<p>series, volume, chapter, page, piece. Building the FAISS index over the full corpus took about 35 minutes on a Kaggle P100. After that the index is just read. The processed corpus is 167 MB of JSONL, on <a href="https://www.kaggle.com/datasets/kanav608/input-data">Kaggle</a>, because it does not belong in git.</p>
+<p>series, volume, chapter, page, piece. Building the FAISS index over the full corpus took about 50 minutes on a Kaggle P100. After that the index is just read. The processed corpus is 167 MB of JSONL, on <a href="https://www.kaggle.com/datasets/kanav608/input-data">Kaggle</a>, because it does not belong in git.</p>
 </section>
 <section id="one-answer-seven-chunk-ids" class="level2">
 <h2 class="anchored" data-anchor-id="one-answer-seven-chunk-ids">One answer, seven chunk ids</h2>
-<p>This is a real run, concise style, from the Phase 0 README.</p>
-<pre class="text"><code>Query: Can you check and tell when did Ashoka or Asoka became Buddhist
-before or after Kalinga, why did he became?
+<p>This is a real run, concise style.</p>
+<pre class="text"><code>Query: Can you check and tell when did Ashoka became Buddhist was it before or after Kalinga, why did he became?
 
 Ashoka became Buddhist before the Kalinga war. According to the context, he became a Buddhist before the Kalinga war, around 265 BCE, as an upasaka. The remorse he felt after the Kalinga war deepened his belief in Buddhism, leading him to adopt it as a central pursuit. This conversion was not immediate but developed gradually over time, culminating in a strong commitment to Buddhist principles and practices. The Kalinga war served as a catalyst for his spiritual transformation, prompting him to seek solace and guidance in Buddhism.
 
@@ -390,7 +413,6 @@ Ashoka became Buddhist before the Kalinga war. According to the context, he beca
 <section id="next-saturday" class="level2">
 <h2 class="anchored" data-anchor-id="next-saturday">Next Saturday</h2>
 <p>Part 2 is the same corpus and the same hybrid retriever. The difference is the thing I actually want to show. Not the framework. A follow-up, “how did he rule?”, rewritten to Ashoka before search runs, and two historians held in separate lanes so they cannot be averaged into a paragraph that neither of them wrote.</p>
-<p>If you have broken a RAG system on sources that disagree, I want the failure more than the architecture diagram. The repo is the long version of this post.</p>
 
 
 </section>

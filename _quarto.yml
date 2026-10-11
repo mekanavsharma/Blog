@@ -15,10 +15,13 @@ website:
       - about.qmd
       #- icon: rss
       #  href: index.xml
-      #- icon: github
-      #  href: https://github.com/mekanavsharma
-      - icon: twitter
-        href: https://twitter.com/kanav608
+      - icon: file-text
+        text: Resume
+        href: Resume_Kanav.pdf
+      - icon: github
+        href: https://github.com/mekanavsharma
+      #- icon: twitter
+      #  href: https://twitter.com/kanav608
       - icon: linkedin
         href: https://www.linkedin.com/in/kanavsh/
 format:
