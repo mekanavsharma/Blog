@@ -10,7 +10,177 @@
 <atom:link href="https://mekanavsharma.github.io/Blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Collection of my Projects and Ideas</description>
 <generator>quarto-1.4.554</generator>
-<lastBuildDate>Sat, 10 Oct 2026 18:30:00 GMT</lastBuildDate>
+<lastBuildDate>Fri, 16 Oct 2026 18:30:00 GMT</lastBuildDate>
+<item>
+  <title>Part 2: Teaching RAG to Plan, Compare and Remember</title>
+  <dc:creator>Kanav Sharma</dc:creator>
+  <link>https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase1/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>Last week<a href="https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase0/">Phase 0</a> The previous pipeline answered when Ashoka became a Buddhist. Six books, one paragraph, no sentence tied to a page.</p>
+<p>The next question is shorter, and it is the one that breaks Phase 0.</p>
+<p>How did he rule?</p>
+<p>“He” is not a retrieval query. BM25 searches for the word. FAISS embeds a pronoun. Whatever comes back, the model fills in a king from pretraining, often the right one, for the wrong reason. Part 1 was the hybrid baseline. This post is Phase 1: the follow-up is rewritten before anything is searched, and two historians are held in separate lanes so they cannot be averaged.</p>
+<p>This post is about how did I solved it: <strong>Phase 0 retrieves once, answers once, and forgets everything.</strong></p>
+<p>To solve it in Phase 1 I made the pipeline <strong>agentic</strong>. The full code is in the <a href="https://github.com/mekanavsharma/the-digital-historian">repo</a> under <code>phase_1_agentic_rag</code>.</p>
+<section id="what-phase-0-does-with-a-follow-up" class="level2">
+<h2 class="anchored" data-anchor-id="what-phase-0-does-with-a-follow-up">What Phase 0 does with a follow-up</h2>
+<p>Phase 0 has no memory. Every question is the first question. “How did he rule his subjects?” is embedded as-is, mixed with whatever chunks sit near the word “he”, and written up as one voice. The chunk ids come afterwards, in a pile, which is what I showed last week.</p>
+<p>A conversation with a book is mostly follow-ups. I keep a scripted one in the Phase 1 entrypoint, because a single polished query never shows this bug.</p>
+<ol type="1">
+<li>What did Guru Gobind Singh bring to Sikhi that was not there before?</li>
+<li>How did he shape it according to the political conditions?</li>
+<li>The militarisation of Sikhi, and his devotion to Shakti.</li>
+<li>How did he meet Banda Singh Bahadur, and what did Banda do after his death?</li>
+<li>Which battles did Banda fight, and how was he captured and killed?</li>
+<li>The same capture, asked again, shorter.</li>
+<li>What was his son’s name? Where was he from originally?</li>
+<li>Then a hard cut. When did Ashoka become a Buddhist, before or after Kalinga, and why?</li>
+<li>How did he take on the empire of his grandfather, and what did he add?</li>
+<li>What did Ahilyabai Holkar actually do?</li>
+<li>Which temples did she restore, and how, Somnath and Kashi?</li>
+</ol>
+<p>Turns 2 to 7 are the same thread. “He” has to become Gobind Singh, and then, once Banda is the subject, Banda. Turn 7 is worse than a pronoun. Whose son? Turn 8 is a different century. If memory is doing its job, Ashoka is not answered out of the Sikh turns. Turn 9 is “he” again, and now “he” has to be Ashoka, not Banda. Turn 11 is “she”.</p>
+<p>I am not pasting model answers for that conversation. A fluent paragraph hides the only line that matters. On each turn I print the rewritten question. If turn 9 still says Banda, the agent failed, whatever the prose looks like.</p>
+</section>
+<section id="what-phase-1-does-before-it-retrieves" class="level2">
+<h2 class="anchored" data-anchor-id="what-phase-1-does-before-it-retrieves">What Phase 1 does before it retrieves</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  Q["User question"] --&gt; M["Memory&lt;br/&gt;pronoun, or similarity above 0.55"]
+  M --&gt; R["Small model rewrites&lt;br/&gt;last 3 turns only"]
+  R --&gt; P["Planner&lt;br/&gt;historians, sub-questions, lanes"]
+  P --&gt; L1["Lane: Romila Thapar"]
+  P --&gt; L2["Lane: R.K. Mukherjee"]
+  L1 --&gt; S["Synthesizer sees each lane&lt;br/&gt;under its own header"]
+  L2 --&gt; S
+  S --&gt; A["Answer&lt;br/&gt;inline chunk ids, then the dump"]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>Two models. A small one, Qwen2.5-1.5B-Instruct, does the rewrite and the plan. The same 4-bit model as Phase 0 writes the answer. Planning is cheap and allowed to be wrong. The answer is the thing I do not want improvised.</p>
+<p><strong>Memory goes first.</strong> A question is a follow-up if it contains a pronoun, or if its embedding is close to the previous question, cosine above 0.55. The pronoun list is blunt: he, she, they, his, her, him, it, this, that, and a few cousins. If it is not a follow-up, I wipe the history. A new topic should not inherit the previous century. If it is a follow-up, I keep the last turns and append this question with an empty answer, which the synthesizer fills in later.</p>
+<p><strong>The rewrite uses that history and nothing else.</strong> The small model sees the last three turns. In the prompt, each previous answer is clipped to 200 characters. The instruction is narrow. If the question says he, she, they, it, or this, replace it with the person from the history. If the question already stands on its own, return it unchanged. Output only the question. If the result is shorter than a few characters, I throw it away and keep the original. I would rather search a pronoun than search a garbled sentence.</p>
+<p><strong>The planner turns one question into lanes.</strong> It has to return JSON: up to four historians, a sub-question for the work, whether a comparison was asked for, and one sentence on why. I parse it. If it is not JSON, the plan becomes a single lane called <code>general</code> and the rewritten question. The agent falls back toward Phase 0. It does not crash into a half-written plan.</p>
+<p>Your names beat the planner. If you pass <code>--historians</code>, those labels are the lanes, and the model’s guess is ignored. That was deliberate. I do not want a 1.5B model deciding that “the nationalist view” is a person.</p>
+<p>Lanes are zipped, one historian with one sub-question. If the planner wrote one sub-question and I asked for two historians, that question is copied into both lanes. The historians differ. The question does not. If the two lists disagree in length, both lanes get the rewritten question rather than a mismatched pair I cannot explain.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  Q["How did Ashoka rule his subjects?"] --&gt; O["Override beats the planner"]
+  O --&gt; A["lane_0 · Romila Thapar&lt;br/&gt;same question"]
+  O --&gt; B["lane_1 · R.K. Mukherjee&lt;br/&gt;same question"]
+  A --&gt; FA["Thapar's own FAISS&lt;br/&gt;or the global hybrid, if that index is missing"]
+  B --&gt; FB["Mukherjee's own FAISS&lt;br/&gt;or the global hybrid, if that index is missing"]
+  FA --&gt; H["Prompt, with a header per lane&lt;br/&gt;passage clipped to 300 characters"]
+  FB --&gt; H
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>Retrieval inside a lane is not the full Phase 0 stack, and I should say so.</p>
+<p>If I can resolve the name to a per-historian FAISS index on disk, that lane searches only there. Names are normalised, then fuzzy-matched, <code>SequenceMatcher</code> at 0.75, so “RK Mukherjee” can still land on the Mukherjee bucket. I take that dense search and keep seven passages. There is no BM25 in that path, and no cross-encoder. I gave up the lexical channel on purpose. A nearer sentence from someone else must not be able to outrank Thapar inside Thapar’s lane.</p>
+<p>If the folder is missing, the lane falls back to the Phase 0 hybrid retriever, BM25 plus FAISS plus the reranker, and I tag the metadata with the historian I asked for. The tag is not a wall. On a fresh clone, where <code>index/</code> is gitignored and the per-historian folders were never built, both lanes search the same global pile. The header will still say Thapar. The passages might not.</p>
+<p>The lanes run in parallel. Each one writes its own key into <code>retrieved_results</code>, and a dict merge keeps them from clobbering each other. Then a position object is built per lane: historian, passages, chunk ids.</p>
+</section>
+<section id="what-the-synthesizer-is-allowed-to-see" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-synthesizer-is-allowed-to-see">What the synthesizer is allowed to see</h2>
+<p>The evidence is not one bag. It is blocked.</p>
+<pre class="text"><code>--- LANE_0 ---
+Historian: Romila Thapar
+
+[chunk_id=EARLY_INDIA_RTH_...] first 300 characters of the passage
+
+--- LANE_1 ---
+Historian: R.K. Mukherjee
+
+[chunk_id=ASOKA_RKM_...] first 300 characters of the passage</code></pre>
+<p>The outline above that evidence is a keyword switch, not a classifier. “Why” and “how did” get causes, evidence, interpretation. “Who” gets the person. “Compare” gets a comparison. Anything else gets a default of context, developments, evidence, significance. I would rather a slightly wrong heading than a model inventing its own structure and wandering off the pages.</p>
+<p>The instruction is stricter than Phase 0, and also less honest about it. Phase 0 forbade the model from writing chunk ids, and I appended them myself. Phase 1 tells the model that every claim must cite <code>[chunk_id=...]</code>, and then I still append up to twenty unique ids at the bottom. I do not trust the inline cites yet. The dump is the part I can check. The inline cite is the part I am trying to grow up into, which is Part 5, not this one.</p>
+<p>Memory is updated from the answer, not from the whole answer. I store 400 characters. Past five turns, the older ones are summarised by the small model into a single note, and the recent five stay verbatim. The summary keeps names. It does not keep pages. That is good enough to resolve “she” to Ahilyabai. It is not good enough to cite her.</p>
+<p>The command I actually want you to run:</p>
+<div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> phase_1_agentic_rag.run_query <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--query</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"How did Ashoka rule his subjects?"</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--historians</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Romila Thapar,R.K. Mukherjee"</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--answer_style</span> concise</span></code></pre></div>
+<p>Interactive, so you can ask “how did he rule?” as the second turn:</p>
+<div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> phase_1_agentic_rag.run_query <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--interactive</span></span></code></pre></div>
+<p>There is a Gradio UI on <code>--gradio</code>. Same graph. The README in the Phase 1 folder still mentions an old module name, <code>phase_1_newtesting</code>. The command above is the one that exists.</p>
+</section>
+<section id="the-number-i-do-not-have" class="level2">
+<h2 class="anchored" data-anchor-id="the-number-i-do-not-have">The number I do not have</h2>
+<p>Phase 0 at least had a ROUGE, and I told you not to trust it. Phase 1’s <code>--evaluate</code> flag does not score anything. It runs that eleven-turn conversation and prints, for each turn, the rewritten question and the answer.</p>
+<p>That is the right smoke test and a bad evaluation. I can see whether “he” survived. I cannot tell you whether Thapar’s lane stayed inside Thapar, or whether a cited chunk id actually contains the sentence. I am not going to invent a faithfulness number for a system I have not measured that way. The trace is the result. If the rewritten line is wrong, nothing downstream is worth reading.</p>
+</section>
+<section id="what-i-am-not-claiming" class="level2">
+<h2 class="anchored" data-anchor-id="what-i-am-not-claiming">What I am not claiming</h2>
+<p>A lane is a wall between authors. It is not a historian, and it is not a graph.</p>
+<p><strong>“His son” is not clarified. It is guessed.</strong> The rewriter must return a question, not a question back. After a turn that mentions both Gobind Singh and Banda, “what was his son’s name?” will be resolved to somebody. A research assistant would ask which he. Mine picks. The pronoun list makes this worse in the other direction too. “This” and “that” count as follow-ups, so a fresh question that merely contains “that” inherits the previous person. And a real follow-up with no pronoun and different wording can fall under 0.55 and get its history wiped. Both errors are mine. The threshold is a constant I have not earned.</p>
+<p><strong>The comparison node is not doing the comparison.</strong> There is a claim aligner. It runs only if the planner sets <code>use_claim_aligner</code>. When it runs, it looks for structured claims on the lane. The position extractor never writes those claims. It writes passages. So the disagreement JSON is usually empty, and the thing that actually keeps the historians apart is the lane header in the prompt. I would rather show you that than pretend a node named “aligner” is reconciling Majumdar with Thapar.</p>
+<p><strong>Two passages count as enough.</strong> The evaluator replans if it sees fewer than two passages, and it will only do that once. Then it declares the evidence sufficient and synthesizes. Two chunks is a guard against an empty index. It is not a reading of the pages. Calling it an evaluator in a diagram is already more credit than the <code>if</code> statement deserves.</p>
+<p><strong>The model does not see the page.</strong> Each passage is clipped to 300 characters before synthesis. A qualification, a date, a “but his son”, often lives past character 300. Hybrid search can retrieve the right chunk and the prompt can still cut off the sentence that mattered. I have not fixed the clip.</p>
+<p><strong>A named lane drops BM25.</strong> Inside a historian index I search dense-only. Ashoka and Asoka are the sort of variation I built BM25 for in Phase 0, and the lane gives that up. The fallback, when the index folder is absent, gives up the wall instead. I do not currently have both.</p>
+<p>None of this answers “did Savarkar’s writing reach Bhagat Singh?” A lane can hand me Thapar’s passages and Mukherjee’s passages. It still needs one chunk that happens to contain both people, or the model will build the edge itself. That edge is Part 3. People, organisations, a timeline, checked against the vector hits rather than hoped for inside a 1,600-character window.</p>
+<p>Code: <a href="https://github.com/mekanavsharma/the-digital-historian">github.com/mekanavsharma/the-digital-historian</a></p>
+</section>
+<section id="next-saturday" class="level2">
+<h2 class="anchored" data-anchor-id="next-saturday">Next Saturday</h2>
+<p>Part 3 is the same books, and a question a lane cannot represent. Who was associated with Abhinav Bharat, and which of those links is actually written down?</p>
+<p>I want the relation to come from a graph I can open, not from a paragraph that sounds like it read one. If the graph and the pages disagree, the pages win. That rule is the whole post.</p>
+
+
+</section>
+
+ ]]></description>
+  <category>RAG</category>
+  <category>LLM</category>
+  <category>Indian History</category>
+  <guid>https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase1/</guid>
+  <pubDate>Fri, 16 Oct 2026 18:30:00 GMT</pubDate>
+  <media:content url="https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase1/Image.png" medium="image" type="image/png" height="92" width="144"/>
+</item>
 <item>
   <title>Part 1: Why vanilla RAG isn’t enough for historical research</title>
   <dc:creator>Kanav Sharma</dc:creator>

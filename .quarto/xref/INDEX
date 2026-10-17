@@ -49,5 +49,14 @@
   },
   "posts/DigitalHistorian_Phase0/index.qmd": {
     "index.html": "5b31efbb"
+  },
+  "posts/DigitalHistorian_Phase1/part-1-why-vanilla-rag-is-not-enough.qmd": {
+    "part-1-why-vanilla-rag-is-not-enough.html": "028b4fe5"
+  },
+  "posts/DigitalHistorian_Phase1/part-2-one-lane-per-historian.qmd": {
+    "part-2-one-lane-per-historian.html": "a9b65b55"
+  },
+  "posts/DigitalHistorian_Phase1/index.qmd": {
+    "index.html": "7c18aa3d"
   }
 }

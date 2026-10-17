@@ -1,15 +1,15 @@
 ---
-title: "Part 2: One lane per historian"
+title: "Part 2: Teaching RAG to Plan, Compare and Remember"
 author: "Kanav Sharma"
 date: "2026-10-17"
 categories: [RAG, LLM, Indian History]
+image: "Image.png"
 description: "Phase 1 of The Digital Historian. The follow-up is rewritten before search, and two historians are not allowed to share a paragraph."
 toc: true
 title-block-banner: true
-draft: true   # blog won't be publish
 ---
 
-Last week[Phase 0](https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase0/) the pipeline answered when Ashoka became a Buddhist. Six books, one paragraph, no sentence tied to a page.
+Last week[Phase 0](https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase0/) The previous pipeline answered when Ashoka became a Buddhist. Six books, one paragraph, no sentence tied to a page.
 
 The next question is shorter, and it is the one that breaks Phase 0.
 
@@ -17,8 +17,10 @@ How did he rule?
 
 "He" is not a retrieval query. BM25 searches for the word. FAISS embeds a pronoun. Whatever comes back, the model fills in a king from pretraining, often the right one, for the wrong reason. Part 1 was the hybrid baseline. This post is Phase 1: the follow-up is rewritten before anything is searched, and two historians are held in separate lanes so they cannot be averaged.
 
-The wiring is LangGraph. That is the least interesting sentence in this post.
+This post is about how did I solved it: **Phase 0 retrieves once, answers once, and forgets everything.**
 
+To solve it in Phase 1 I made the pipeline **agentic**. The full code is in the [repo](https://github.com/mekanavsharma/the-digital-historian) under `phase_1_agentic_rag`.
+ 
 ## What Phase 0 does with a follow-up
 
 Phase 0 has no memory. Every question is the first question. "How did he rule his subjects?" is embedded as-is, mixed with whatever chunks sit near the word "he", and written up as one voice. The chunk ids come afterwards, in a pile, which is what I showed last week.
@@ -145,7 +147,7 @@ A lane is a wall between authors. It is not a historian, and it is not a graph.
 
 **A named lane drops BM25.** Inside a historian index I search dense-only. Ashoka and Asoka are the sort of variation I built BM25 for in Phase 0, and the lane gives that up. The fallback, when the index folder is absent, gives up the wall instead. I do not currently have both.
 
-None of this answers "did Savarkar's writing reach Bhagat Singh?" A lane can hand me Thapar's passages and Mukherjee's passages. It still needs one chunk that happens to contain both people, or the model will build the edge itself. That edge is Part 3. People, organisations, a timeline, checked against the vector hits rather than hoped for inside a 1,600-character window.
+None of this answers "did Savarkar's writing reach Bhagat Singh?" A lane can hand me certain historian's passage. It still needs one chunk that happens to contain both people, or the model will build the edge itself. That edge is Part 3. People, organisations, a timeline, checked against the vector hits rather than hoped for inside a 1,600-character window.
 
 Code: [github.com/mekanavsharma/the-digital-historian](https://github.com/mekanavsharma/the-digital-historian)
 
