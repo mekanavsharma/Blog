@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.554">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Kanav Sharma">
+<meta name="dcterms.date" content="2026-10-25">
+<meta name="description" content="Phase 2 of The Digital Historian. A relation has to be an edge I can open. Right now the edge often forgets the sentence that justified it.">
+
+<title>Blog - Part 3: History is a graph, not a bag of chunks</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark.min.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="../../site_libs/quarto-diagram/mermaid.min.js"></script>
+<script src="../../site_libs/quarto-diagram/mermaid-init.js"></script>
+<link href="../../site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../Resume_Kanav.pdf"> <i class="bi bi-file-text" role="img">
+</i> 
+<span class="menu-text">Resume</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/mekanavsharma"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/kanavsh/"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Part 3: History is a graph, not a bag of chunks</h1>
+                  <div>
+        <div class="description">
+          Phase 2 of The Digital Historian. A relation has to be an edge I can open. Right now the edge often forgets the sentence that justified it.
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">RAG</div>
+                <div class="quarto-category">LLM</div>
+                <div class="quarto-category">Indian History</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Kanav Sharma </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">October 25, 2026</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-problem-questions-chunks-cant-answer" id="toc-the-problem-questions-chunks-cant-answer" class="nav-link active" data-scroll-target="#the-problem-questions-chunks-cant-answer">The problem: questions chunks can’t answer</a></li>
+  <li><a href="#the-router-is-a-pile-of-phrases-and-this-question-misses-it" id="toc-the-router-is-a-pile-of-phrases-and-this-question-misses-it" class="nav-link" data-scroll-target="#the-router-is-a-pile-of-phrases-and-this-question-misses-it">The router is a pile of phrases, and this question misses it</a></li>
+  <li><a href="#what-actually-gets-written-down" id="toc-what-actually-gets-written-down" class="nav-link" data-scroll-target="#what-actually-gets-written-down">What actually gets written down</a></li>
+  <li><a href="#what-the-query-path-does-with-it" id="toc-what-the-query-path-does-with-it" class="nav-link" data-scroll-target="#what-the-query-path-does-with-it">What the query path does with it</a></li>
+  <li><a href="#what-i-am-not-claiming" id="toc-what-i-am-not-claiming" class="nav-link" data-scroll-target="#what-i-am-not-claiming">What I am not claiming</a></li>
+  <li><a href="#next-saturday" id="toc-next-saturday" class="nav-link" data-scroll-target="#next-saturday">Next Saturday</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<p>Last week<a href="https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase1/">Phase 1</a> a lane could keep Romila Thapar out of R.K. Mukherjee’s paragraph. It still could not answer who was associated with Abhinav Bharat, unless some 1,600-character window happened to contain both names.</p>
+<p>A relation is not a nearest neighbour. It is an edge. I said the edge had to come from a graph I can open, and that if the graph and the pages disagreed, the pages would win.</p>
+<p>I built the graph. Then I ran the question. The pages do not win. On the default path, the question never reaches the graph at all.</p>
+<section id="the-problem-questions-chunks-cant-answer" class="level2">
+<h2 class="anchored" data-anchor-id="the-problem-questions-chunks-cant-answer">The problem: questions chunks can’t answer</h2>
+<p>Look at this query from my own test list:</p>
+<blockquote class="blockquote">
+<p><em>“Who were associated with Abhinav Bharat?”</em></p>
+</blockquote>
+<p>A chunk-based pipeline, however good, has a hard time with it. The answer isn’t in one paragraph. It is scattered across many chunks, in different chapters and books, each mentioning one or two names. To answer well, the system has to <strong>collect</strong> those mentions and <strong>connect</strong> them.</p>
+<p>There is a whole family of questions like this:</p>
+<ul>
+<li><strong>Association:</strong> who worked with whom, who belonged to which organisation.</li>
+<li><strong>Chronology:</strong> what happened before or after an event, and in what order.</li>
+<li><strong>Aggregation:</strong> list everything connected to a person, place or movement.</li>
+<li><strong>Reconciliation:</strong> two books give different dates, and which one do the other sources support?</li>
+</ul>
+<p>Top-k text retrieval returns the <em>most similar</em> passages. These questions need the <em>connections between</em> passages. That is what a graph stores.</p>
+</section>
+<section id="the-router-is-a-pile-of-phrases-and-this-question-misses-it" class="level2">
+<h2 class="anchored" data-anchor-id="the-router-is-a-pile-of-phrases-and-this-question-misses-it">The router is a pile of phrases, and this question misses it</h2>
+<p>There is no model in the router. I score the question with lists.</p>
+<p>Relationship phrases, “who fought whom”, “allied with”, “succeeded by”, “ruled by”, add 2 to graph. Time phrases, “before”, “after”, “when”, “year”, add 1 to timeline. Comparison phrases, “compare”, “according to”, “cross-check”, or the names Majumdar and Sarkar, add 2 to verification. A question of eight words or fewer adds 1 to vector, which is the Phase 0 retriever. The biggest score wins. The confidence I store next to that choice, 0.92 or 0.88 or 0.78, is a number I typed. It is not a probability.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  Q["Question"] --&gt; R["Phrase scores&lt;br/&gt;not a model"]
+  R --&gt; G["Graph&lt;br/&gt;1-hop around a capitalised name"]
+  R --&gt; T["Timeline&lt;br/&gt;SQLite, years 1000 to 2029"]
+  R --&gt; V["Vector&lt;br/&gt;Phase 0 hybrid, then keep 5"]
+  R --&gt; X["Verification&lt;br/&gt;graph, then pages, then years"]
+  G --&gt; E{"Any edges?"}
+  E --&gt;|no| V
+  E --&gt;|yes| S["Same Phase 0 prompt"]
+  T --&gt; S
+  V --&gt; S
+  X --&gt; S
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>Now the question I have been pointing at for two weeks.</p>
+<p><code>Who were associated with Abhinav Bharat?</code></p>
+<p>Six words. “Associated” is not in the relationship list. “Fought”, “allied”, “succeeded”, and “ruled” are. So graph stays at 0. Vector gets 1 for being short. The router calls it a fact lookup and sends it to hybrid search. The README has a second command, <code>--retrieval-mode graph</code>, because the first command does not do what the heading says. I am glad that second command is there. I am not going to describe the first one as graph retrieval.</p>
+<p>“Who fought whom in 1526?” does hit the list. “Who fought whom” is worth 2, and that beats the short-question point for vector. The router is right. The retriever then looks for a capitalised name to center the subgraph on. “Who” is a stop word. 1526 is not a name. The entity list is empty. An empty list matches nothing. Auto mode sees no edges and falls back to the same hybrid search Phase 0 would have run. A forced graph mode does not fall back. It says the relationship was never extracted, which is the more honest failure, and also not an answer.</p>
+</section>
+<section id="what-actually-gets-written-down" class="level2">
+<h2 class="anchored" data-anchor-id="what-actually-gets-written-down">What actually gets written down</h2>
+<p>Ingest is where the graph is decided. I do not ask a model to invent triples. <code>en_core_web_sm</code> reads each sentence. If the verb’s lemma is in a map, the subject and object become an edge, and only if both look like proper names. “Defeated” becomes <code>FOUGHT_AGAINST</code>. “Founded” becomes <code>FOUNDED</code>. “Associated” becomes <code>ASSOCIATED_WITH</code>. If the parse finds nothing, a few regular expressions run, including “was a member of” and “associated with”. If those find nothing either, and the sentence contains a person and an organisation, every person is tied to every organisation with <code>ASSOCIATED_WITH</code>.</p>
+<p>That last rule is how a membership question gets answers, and how it gets false ones. Coincidence and membership are the same edge. The lemma map has the same disease one level up. “Follow” is coded as succession. A sentence about a courtier who followed Akbar to a campaign can become <code>SUCCEEDED_BY</code>. I would rather miss that edge than crown the courtier. I have not taught the map the difference.</p>
+<p>Two choices in the ingest matter more than the schema poster.</p>
+<p>I extract per page, not per chunk, when you pass <code>--page-mode</code>. The pieces of <code>HCIP_RCM_V2_C5_P143_0</code> and <code>_1</code> are put back into one page before spaCy sees them. A relation that I split at 1,600 characters can be a sentence again. The id stored on the edge is the page id, with the piece number stripped.</p>
+<p>And the only years I keep are 1000 to 2029. A four-digit year in that range becomes a <code>Year</code> node, and a battle or a treaty on that page is linked to it with <code>OCCURRED_IN</code>. 265 BCE does not match the pattern. The Kalinga question from Part 1 cannot become a timeline, because the timeline does not believe in dates before 1000. Ancient history, in this store, is a string.</p>
+<p>The edges carry the sentence. At ingest I write <code>context</code>, the chunk id, and the page onto the relationship. That was the whole point. An edge you cannot open back onto a page is a rumour.</p>
+</section>
+<section id="what-the-query-path-does-with-it" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-query-path-does-with-it">What the query path does with it</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  N["Capitalised name"] --&gt; C["Neo4j: name CONTAINS that string&lt;br/&gt;1 hop, undirected, no year filter"]
+  C --&gt; F["Drop relation types I did not allow"]
+  F --&gt; P["Prompt line:&lt;br/&gt;Person:X --ASSOCIATED_WITH--&gt; Organization:Y"]
+  P --&gt; L["Phase 0 generator&lt;br/&gt;cites graph-1 if the page id was not read back"]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>The query path does not run the Cypher I was most careful about. I wrote a query that puts <code>WHERE</code> before <code>OPTIONAL MATCH</code>, because in Neo4j a <code>WHERE</code> after <code>OPTIONAL MATCH</code> filters the optional part and lets the main match return everything. That query is in the file. <code>graph_search</code> does not call it. It asks for a one-hop subgraph around the name, undirected, <code>CONTAINS</code> rather than an exact name, and then filters relation types in Python. The Cypher printed in the log is a comment that says no traversal query was used. I am not going to pretend the database did a join I didn’t send.</p>
+<p><code>CONTAINS</code> is a blunt instrument. “Ali” sits inside longer names. One hop is also blunt, in the other direction. Savarkar to a society to a second person is two hops. I clamp the walk at one. The chain I said I wanted is not the chain I retrieve.</p>
+<p>The year is parsed and then dropped. “1526” is pulled out with the same 1000-to-2029 expression. The subgraph query does not receive it. The rows that come back do not include relationship properties, so the Python year check has nothing to compare. Who fought whom in 1526 is not a question about 1526. It is a question about whoever was capitalised, and in that particular wording, nobody was.</p>
+<p>Worse, the sentence I stored is not read back. The return clause asks for the two names and the type of the edge. It does not ask for <code>context</code>, the chunk id, or the page. The prompt therefore sees a line like:</p>
+<pre class="text"><code>Graph evidence: Person:Vinayak Savarkar --ASSOCIATED_WITH--&gt; Organization:Abhinav Bharat</code></pre>
+<p>No page. The citation helper, finding no chunk id, writes <code>graph-1</code>. That is not a page in any book I own. The justification is sitting on the relationship in Neo4j. The answer path forgot to pick it up.</p>
+<p>If auto mode finds no edges, it calls the Phase 0 retriever, and those passages do have real chunk ids. A forced <code>--retrieval-mode graph</code> will not make that call. Empty stays empty. I prefer the forced mode when I am testing the graph, because the fallback hides it.</p>
+<p>A timeline question with a four-digit year is a real range query, <code>year BETWEEN</code>, ordered by year, twenty rows. A timeline question without one, which is every ancient question, searches the first capitalised name with <code>LIKE</code>. “Before and after Kalinga” is that search. Kalinga may be in the table. 265 is not.</p>
+<p>Verification, the fourth door, runs all three and then compares them. Agreement is true if any graph name appears inside a retrieved passage, or if the timeline returned any year at all. A year with no shared entity still counts. Nothing is deleted when agreement is false. The verdict is written into the prompt as one more passage: “Agreement=true” or not. The page cannot strike an edge. Last week’s rule is not in this code. An empty graph loses to the pages. A wrong graph is shown beside them.</p>
+<p>The generator is unchanged. <code>build_prompt</code> from Phase 0, the same 4-bit model, the same instruction to stay inside the context, the same chunk ids appended afterwards. On a graph hit, part of that context is the triple, not the book. The model will recite the triple. I told it the triple was evidence.</p>
+</section>
+<section id="what-i-am-not-claiming" class="level2">
+<h2 class="anchored" data-anchor-id="what-i-am-not-claiming">What I am not claiming</h2>
+<p>I am not claiming a knowledge graph of Indian history. I am claiming a heuristic one, and the heuristics have a shape I can list.</p>
+<p><strong>The question I care about does not route.</strong> “Associated with” is the relation I extract and the phrase I forgot to score. Until I add it, Abhinav Bharat is a vector query, unless I force the mode.</p>
+<p><strong>The graph is case-sensitive in the only way that hurts.</strong> Entities are capitalised spans. The README’s own example, “Abhinava bharat”, keeps “Abhinava” and drops “bharat”. A lower-case name is not in the graph lookup, even if the edge exists.</p>
+<p><strong>BCE is out of range.</strong> The timeline is a modern-year index with a keyword fallback. It will not order Ashoka, the Kalinga war, and the edicts. Part 1’s question is still a vector question, and it should be.</p>
+<p><strong>One hop, no sentence.</strong> The walk stops at the first neighbour, and the neighbour arrives without the sentence or the page. <code>graph-1</code> is a confession, not a citation.</p>
+<p><strong>“Follow” is not always a succession, and a shared sentence is not always a membership.</strong> Both of those edges will look identical to the true ones in the prompt. I have no count of how often. Phase 2 has no evaluation flag that scores an edge against the sentence it came from. I am not going to invent a precision number for a triple store I have not audited.</p>
+<p><strong>The pages do not win a disagreement.</strong> They win an absence. That is a fallback, not a rule.</p>
+<p>What I will claim is smaller. The hybrid retriever is still the retriever. The graph is a second index, built from verbs and names, stored so a relationship can be listed without rereading the book. Page-level ingest is the right cut, because the chunk boundary was the original bug. And a triple that cannot show its sentence is not yet a source.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> phase_2_graph_rag.run_query <span class="at">--ingest</span> <span class="at">--reset</span> <span class="at">--page-mode</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> phase_2_graph_rag.run_query <span class="dt">\</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--query</span> <span class="st">"Who were associated with Abhinav Bharat?"</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> phase_2_graph_rag.run_query <span class="dt">\</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--query</span> <span class="st">"Who were associated with Abhinav Bharat?"</span> <span class="dt">\</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--retrieval-mode</span> graph</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-m</span> phase_2_graph_rag.run_query <span class="at">--visualize</span> <span class="st">"Akbar"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>The visualization is an HTML file from PyVis, under <code>phase_2_graph_rag/artifacts/visualizations/</code>. The Phase 2 README still says PNG. The file you can open is the HTML. Neo4j has to be up. The query command does not quietly switch to the in-memory graph. Set <code>NEO4J_URI</code>, <code>NEO4J_USER</code>, <code>NEO4J_PASSWORD</code>, and <code>NEO4J_DATABASE</code> yourself.</p>
+<p>Code: <a href="https://github.com/mekanavsharma/the-digital-historian">github.com/mekanavsharma/the-digital-historian</a></p>
+</section>
+<section id="next-saturday" class="level2">
+<h2 class="anchored" data-anchor-id="next-saturday">Next Saturday</h2>
+<p>The labels have been on the chunks since the data prep. Ancient or medieval or modern. Nationalist, Marxist, or neither. Phase 2’s verifier never reads them. It looks for a shared string.</p>
+<p>Part 4 is that shelf. A question goes to a period and a school before retrieval, the other passages are dropped, and the model is trained to answer from the pages it was given and ignore the ones that were only nearby. An edge without a sentence is a problem. A paragraph that blends three schools of history is the older one, and it is still open.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp("https:\/\/mekanavsharma\.github\.io\/Blog\/");
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

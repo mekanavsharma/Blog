@@ -10,7 +10,187 @@
 <atom:link href="https://mekanavsharma.github.io/Blog/index.xml" rel="self" type="application/rss+xml"/>
 <description>Collection of my Projects and Ideas</description>
 <generator>quarto-1.4.554</generator>
-<lastBuildDate>Fri, 16 Oct 2026 18:30:00 GMT</lastBuildDate>
+<lastBuildDate>Sat, 24 Oct 2026 18:30:00 GMT</lastBuildDate>
+<item>
+  <title>Part 3: History is a graph, not a bag of chunks</title>
+  <dc:creator>Kanav Sharma</dc:creator>
+  <link>https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase2/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>Last week<a href="https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase1/">Phase 1</a> a lane could keep Romila Thapar out of R.K. Mukherjee’s paragraph. It still could not answer who was associated with Abhinav Bharat, unless some 1,600-character window happened to contain both names.</p>
+<p>A relation is not a nearest neighbour. It is an edge. I said the edge had to come from a graph I can open, and that if the graph and the pages disagreed, the pages would win.</p>
+<p>I built the graph. Then I ran the question. The pages do not win. On the default path, the question never reaches the graph at all.</p>
+<section id="the-problem-questions-chunks-cant-answer" class="level2">
+<h2 class="anchored" data-anchor-id="the-problem-questions-chunks-cant-answer">The problem: questions chunks can’t answer</h2>
+<p>Look at this query from my own test list:</p>
+<blockquote class="blockquote">
+<p><em>“Who were associated with Abhinav Bharat?”</em></p>
+</blockquote>
+<p>A chunk-based pipeline, however good, has a hard time with it. The answer isn’t in one paragraph. It is scattered across many chunks, in different chapters and books, each mentioning one or two names. To answer well, the system has to <strong>collect</strong> those mentions and <strong>connect</strong> them.</p>
+<p>There is a whole family of questions like this:</p>
+<ul>
+<li><strong>Association:</strong> who worked with whom, who belonged to which organisation.</li>
+<li><strong>Chronology:</strong> what happened before or after an event, and in what order.</li>
+<li><strong>Aggregation:</strong> list everything connected to a person, place or movement.</li>
+<li><strong>Reconciliation:</strong> two books give different dates, and which one do the other sources support?</li>
+</ul>
+<p>Top-k text retrieval returns the <em>most similar</em> passages. These questions need the <em>connections between</em> passages. That is what a graph stores.</p>
+</section>
+<section id="the-router-is-a-pile-of-phrases-and-this-question-misses-it" class="level2">
+<h2 class="anchored" data-anchor-id="the-router-is-a-pile-of-phrases-and-this-question-misses-it">The router is a pile of phrases, and this question misses it</h2>
+<p>There is no model in the router. I score the question with lists.</p>
+<p>Relationship phrases, “who fought whom”, “allied with”, “succeeded by”, “ruled by”, add 2 to graph. Time phrases, “before”, “after”, “when”, “year”, add 1 to timeline. Comparison phrases, “compare”, “according to”, “cross-check”, or the names Majumdar and Sarkar, add 2 to verification. A question of eight words or fewer adds 1 to vector, which is the Phase 0 retriever. The biggest score wins. The confidence I store next to that choice, 0.92 or 0.88 or 0.78, is a number I typed. It is not a probability.</p>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  Q["Question"] --&gt; R["Phrase scores&lt;br/&gt;not a model"]
+  R --&gt; G["Graph&lt;br/&gt;1-hop around a capitalised name"]
+  R --&gt; T["Timeline&lt;br/&gt;SQLite, years 1000 to 2029"]
+  R --&gt; V["Vector&lt;br/&gt;Phase 0 hybrid, then keep 5"]
+  R --&gt; X["Verification&lt;br/&gt;graph, then pages, then years"]
+  G --&gt; E{"Any edges?"}
+  E --&gt;|no| V
+  E --&gt;|yes| S["Same Phase 0 prompt"]
+  T --&gt; S
+  V --&gt; S
+  X --&gt; S
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>Now the question I have been pointing at for two weeks.</p>
+<p><code>Who were associated with Abhinav Bharat?</code></p>
+<p>Six words. “Associated” is not in the relationship list. “Fought”, “allied”, “succeeded”, and “ruled” are. So graph stays at 0. Vector gets 1 for being short. The router calls it a fact lookup and sends it to hybrid search. The README has a second command, <code>--retrieval-mode graph</code>, because the first command does not do what the heading says. I am glad that second command is there. I am not going to describe the first one as graph retrieval.</p>
+<p>“Who fought whom in 1526?” does hit the list. “Who fought whom” is worth 2, and that beats the short-question point for vector. The router is right. The retriever then looks for a capitalised name to center the subgraph on. “Who” is a stop word. 1526 is not a name. The entity list is empty. An empty list matches nothing. Auto mode sees no edges and falls back to the same hybrid search Phase 0 would have run. A forced graph mode does not fall back. It says the relationship was never extracted, which is the more honest failure, and also not an answer.</p>
+</section>
+<section id="what-actually-gets-written-down" class="level2">
+<h2 class="anchored" data-anchor-id="what-actually-gets-written-down">What actually gets written down</h2>
+<p>Ingest is where the graph is decided. I do not ask a model to invent triples. <code>en_core_web_sm</code> reads each sentence. If the verb’s lemma is in a map, the subject and object become an edge, and only if both look like proper names. “Defeated” becomes <code>FOUGHT_AGAINST</code>. “Founded” becomes <code>FOUNDED</code>. “Associated” becomes <code>ASSOCIATED_WITH</code>. If the parse finds nothing, a few regular expressions run, including “was a member of” and “associated with”. If those find nothing either, and the sentence contains a person and an organisation, every person is tied to every organisation with <code>ASSOCIATED_WITH</code>.</p>
+<p>That last rule is how a membership question gets answers, and how it gets false ones. Coincidence and membership are the same edge. The lemma map has the same disease one level up. “Follow” is coded as succession. A sentence about a courtier who followed Akbar to a campaign can become <code>SUCCEEDED_BY</code>. I would rather miss that edge than crown the courtier. I have not taught the map the difference.</p>
+<p>Two choices in the ingest matter more than the schema poster.</p>
+<p>I extract per page, not per chunk, when you pass <code>--page-mode</code>. The pieces of <code>HCIP_RCM_V2_C5_P143_0</code> and <code>_1</code> are put back into one page before spaCy sees them. A relation that I split at 1,600 characters can be a sentence again. The id stored on the edge is the page id, with the piece number stripped.</p>
+<p>And the only years I keep are 1000 to 2029. A four-digit year in that range becomes a <code>Year</code> node, and a battle or a treaty on that page is linked to it with <code>OCCURRED_IN</code>. 265 BCE does not match the pattern. The Kalinga question from Part 1 cannot become a timeline, because the timeline does not believe in dates before 1000. Ancient history, in this store, is a string.</p>
+<p>The edges carry the sentence. At ingest I write <code>context</code>, the chunk id, and the page onto the relationship. That was the whole point. An edge you cannot open back onto a page is a rumour.</p>
+</section>
+<section id="what-the-query-path-does-with-it" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-query-path-does-with-it">What the query path does with it</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  N["Capitalised name"] --&gt; C["Neo4j: name CONTAINS that string&lt;br/&gt;1 hop, undirected, no year filter"]
+  C --&gt; F["Drop relation types I did not allow"]
+  F --&gt; P["Prompt line:&lt;br/&gt;Person:X --ASSOCIATED_WITH--&gt; Organization:Y"]
+  P --&gt; L["Phase 0 generator&lt;br/&gt;cites graph-1 if the page id was not read back"]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>The query path does not run the Cypher I was most careful about. I wrote a query that puts <code>WHERE</code> before <code>OPTIONAL MATCH</code>, because in Neo4j a <code>WHERE</code> after <code>OPTIONAL MATCH</code> filters the optional part and lets the main match return everything. That query is in the file. <code>graph_search</code> does not call it. It asks for a one-hop subgraph around the name, undirected, <code>CONTAINS</code> rather than an exact name, and then filters relation types in Python. The Cypher printed in the log is a comment that says no traversal query was used. I am not going to pretend the database did a join I didn’t send.</p>
+<p><code>CONTAINS</code> is a blunt instrument. “Ali” sits inside longer names. One hop is also blunt, in the other direction. Savarkar to a society to a second person is two hops. I clamp the walk at one. The chain I said I wanted is not the chain I retrieve.</p>
+<p>The year is parsed and then dropped. “1526” is pulled out with the same 1000-to-2029 expression. The subgraph query does not receive it. The rows that come back do not include relationship properties, so the Python year check has nothing to compare. Who fought whom in 1526 is not a question about 1526. It is a question about whoever was capitalised, and in that particular wording, nobody was.</p>
+<p>Worse, the sentence I stored is not read back. The return clause asks for the two names and the type of the edge. It does not ask for <code>context</code>, the chunk id, or the page. The prompt therefore sees a line like:</p>
+<pre class="text"><code>Graph evidence: Person:Vinayak Savarkar --ASSOCIATED_WITH--&gt; Organization:Abhinav Bharat</code></pre>
+<p>No page. The citation helper, finding no chunk id, writes <code>graph-1</code>. That is not a page in any book I own. The justification is sitting on the relationship in Neo4j. The answer path forgot to pick it up.</p>
+<p>If auto mode finds no edges, it calls the Phase 0 retriever, and those passages do have real chunk ids. A forced <code>--retrieval-mode graph</code> will not make that call. Empty stays empty. I prefer the forced mode when I am testing the graph, because the fallback hides it.</p>
+<p>A timeline question with a four-digit year is a real range query, <code>year BETWEEN</code>, ordered by year, twenty rows. A timeline question without one, which is every ancient question, searches the first capitalised name with <code>LIKE</code>. “Before and after Kalinga” is that search. Kalinga may be in the table. 265 is not.</p>
+<p>Verification, the fourth door, runs all three and then compares them. Agreement is true if any graph name appears inside a retrieved passage, or if the timeline returned any year at all. A year with no shared entity still counts. Nothing is deleted when agreement is false. The verdict is written into the prompt as one more passage: “Agreement=true” or not. The page cannot strike an edge. Last week’s rule is not in this code. An empty graph loses to the pages. A wrong graph is shown beside them.</p>
+<p>The generator is unchanged. <code>build_prompt</code> from Phase 0, the same 4-bit model, the same instruction to stay inside the context, the same chunk ids appended afterwards. On a graph hit, part of that context is the triple, not the book. The model will recite the triple. I told it the triple was evidence.</p>
+</section>
+<section id="what-i-am-not-claiming" class="level2">
+<h2 class="anchored" data-anchor-id="what-i-am-not-claiming">What I am not claiming</h2>
+<p>I am not claiming a knowledge graph of Indian history. I am claiming a heuristic one, and the heuristics have a shape I can list.</p>
+<p><strong>The question I care about does not route.</strong> “Associated with” is the relation I extract and the phrase I forgot to score. Until I add it, Abhinav Bharat is a vector query, unless I force the mode.</p>
+<p><strong>The graph is case-sensitive in the only way that hurts.</strong> Entities are capitalised spans. The README’s own example, “Abhinava bharat”, keeps “Abhinava” and drops “bharat”. A lower-case name is not in the graph lookup, even if the edge exists.</p>
+<p><strong>BCE is out of range.</strong> The timeline is a modern-year index with a keyword fallback. It will not order Ashoka, the Kalinga war, and the edicts. Part 1’s question is still a vector question, and it should be.</p>
+<p><strong>One hop, no sentence.</strong> The walk stops at the first neighbour, and the neighbour arrives without the sentence or the page. <code>graph-1</code> is a confession, not a citation.</p>
+<p><strong>“Follow” is not always a succession, and a shared sentence is not always a membership.</strong> Both of those edges will look identical to the true ones in the prompt. I have no count of how often. Phase 2 has no evaluation flag that scores an edge against the sentence it came from. I am not going to invent a precision number for a triple store I have not audited.</p>
+<p><strong>The pages do not win a disagreement.</strong> They win an absence. That is a fallback, not a rule.</p>
+<p>What I will claim is smaller. The hybrid retriever is still the retriever. The graph is a second index, built from verbs and names, stored so a relationship can be listed without rereading the book. Page-level ingest is the right cut, because the chunk boundary was the original bug. And a triple that cannot show its sentence is not yet a source.</p>
+<div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> phase_2_graph_rag.run_query <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--ingest</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--reset</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--page-mode</span></span>
+<span id="cb2-2"></span>
+<span id="cb2-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> phase_2_graph_rag.run_query <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--query</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Who were associated with Abhinav Bharat?"</span></span>
+<span id="cb2-5"></span>
+<span id="cb2-6"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> phase_2_graph_rag.run_query <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--query</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Who were associated with Abhinav Bharat?"</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb2-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--retrieval-mode</span> graph</span>
+<span id="cb2-9"></span>
+<span id="cb2-10"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">python</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-m</span> phase_2_graph_rag.run_query <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--visualize</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Akbar"</span></span></code></pre></div>
+<p>The visualization is an HTML file from PyVis, under <code>phase_2_graph_rag/artifacts/visualizations/</code>. The Phase 2 README still says PNG. The file you can open is the HTML. Neo4j has to be up. The query command does not quietly switch to the in-memory graph. Set <code>NEO4J_URI</code>, <code>NEO4J_USER</code>, <code>NEO4J_PASSWORD</code>, and <code>NEO4J_DATABASE</code> yourself.</p>
+<p>Code: <a href="https://github.com/mekanavsharma/the-digital-historian">github.com/mekanavsharma/the-digital-historian</a></p>
+</section>
+<section id="next-saturday" class="level2">
+<h2 class="anchored" data-anchor-id="next-saturday">Next Saturday</h2>
+<p>The labels have been on the chunks since the data prep. Ancient or medieval or modern. Nationalist, Marxist, or neither. Phase 2’s verifier never reads them. It looks for a shared string.</p>
+<p>Part 4 is that shelf. A question goes to a period and a school before retrieval, the other passages are dropped, and the model is trained to answer from the pages it was given and ignore the ones that were only nearby. An edge without a sentence is a problem. A paragraph that blends three schools of history is the older one, and it is still open.</p>
+
+
+</section>
+
+ ]]></description>
+  <category>RAG</category>
+  <category>LLM</category>
+  <category>Indian History</category>
+  <guid>https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase2/</guid>
+  <pubDate>Sat, 24 Oct 2026 18:30:00 GMT</pubDate>
+  <media:content url="https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase2/Image.png" medium="image" type="image/png" height="166" width="144"/>
+</item>
 <item>
   <title>Part 2: Teaching RAG to Plan, Compare and Remember</title>
   <dc:creator>Kanav Sharma</dc:creator>

@@ -1,24 +1,35 @@
 ---
 title: "Part 3: History is a graph, not a bag of chunks"
 author: "Kanav Sharma"
-date: "2026-10-24"
+date: "2026-10-25"
 categories: [RAG, LLM, Indian History]
+image: "Image.png"
 description: "Phase 2 of The Digital Historian. A relation has to be an edge I can open. Right now the edge often forgets the sentence that justified it."
 toc: true
 title-block-banner: true
-draft: true   # blog won't be publish
 ---
-Last week a lane could keep Romila Thapar out of R.K. Mukherjee's paragraph. It still could not answer who was associated with Abhinav Bharat, unless some 1,600-character window happened to contain both names.
+Last week[Phase 1](https://mekanavsharma.github.io/Blog/posts/DigitalHistorian_Phase1/) a lane could keep Romila Thapar out of R.K. Mukherjee's paragraph. It still could not answer who was associated with Abhinav Bharat, unless some 1,600-character window happened to contain both names.
 
 A relation is not a nearest neighbour. It is an edge. I said the edge had to come from a graph I can open, and that if the graph and the pages disagreed, the pages would win.
 
 I built the graph. Then I ran the question. The pages do not win. On the default path, the question never reaches the graph at all.
 
-## What a bag of chunks does with a membership
+## The problem: questions chunks can't answer
 
-"Who was associated with Abhinav Bharat?" is two entities and a predicate. Phase 0 embeds the whole sentence and hopes a chunk holds the predicate. Phase 1 can put Thapar in one lane and Majumdar in another, and still hope. Hope is how a model invents a member list that sounds like a book.
+Look at this query from my own test list:
 
-Phase 2 is the attempt to stop hoping. spaCy reads the corpus. A verb I recognise becomes an edge. The edge goes into Neo4j. A year, when I can see one, goes into SQLite. A question is then sent to the graph, the timeline, the Phase 0 hybrid retriever, or all three. The answer is still written by the same Phase 0 prompt. The graph does not get its own voice. It has to show up as evidence, or it does not count.
+> *"Who were associated with Abhinav Bharat?"*
+
+A chunk-based pipeline, however good, has a hard time with it. The answer isn't in one paragraph. It is scattered across many chunks, in different chapters and books, each mentioning one or two names. To answer well, the system has to **collect** those mentions and **connect** them.
+
+There is a whole family of questions like this:
+
+- **Association:** who worked with whom, who belonged to which organisation.
+- **Chronology:** what happened before or after an event, and in what order.
+- **Aggregation:** list everything connected to a person, place or movement.
+- **Reconciliation:** two books give different dates, and which one do the other sources support?
+
+Top-k text retrieval returns the *most similar* passages. These questions need the *connections between* passages. That is what a graph stores.
 
 ## The router is a pile of phrases, and this question misses it
 
